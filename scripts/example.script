@@ -1,0 +1,26 @@
+# JanusGraph CLI 示例脚本
+# 使用 '#' 开头的行是注释，会被忽略
+
+# 查看系统信息
+system info
+
+# 列出所有索引
+index list
+
+# 查看 Schema
+schema list
+
+# 创建属性键
+schema create-key name String
+
+# 创建顶点标签
+schema create-label person vertex
+
+# 创建索引
+index create byName name vertex -u
+
+# 查询数据
+g V().count()
+
+# 查看索引状态
+index status byName

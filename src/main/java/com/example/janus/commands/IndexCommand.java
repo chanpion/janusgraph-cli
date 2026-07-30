@@ -1,0 +1,384 @@
+package com.example.janus.commands;
+
+import com.example.janus.core.GraphManager;
+import com.example.janus.core.IndexManager;
+import com.example.janus.utils.JsonFormatter;
+import com.example.janus.utils.TableFormatter;
+import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.janusgraph.core.JanusGraph;
+import org.janusgraph.core.PropertyKey;
+import org.janusgraph.core.schema.JanusGraphIndex;
+import org.janusgraph.core.schema.JanusGraphManagement;
+import org.janusgraph.core.schema.SchemaAction;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+public class IndexCommand implements Command {
+
+    private final GraphManager graphManager;
+
+    public IndexCommand(GraphManager graphManager) {
+        this.graphManager = graphManager;
+    }
+
+    @Override
+    public void execute(String args) throws Exception {
+        if (args.isEmpty()) {
+            showUsage();
+            return;
+        }
+
+        String[] parts = args.split("\\s+", 2);
+        String subCmd = parts[0].toLowerCase();
+        String subArgs = parts.length > 1 ? parts[1] : "";
+
+        switch (subCmd) {
+            case "list":
+            case "ls":
+                listIndexes(subArgs);
+                break;
+            case "create":
+                createIndex(subArgs);
+                break;
+            case "drop":
+            case "delete":
+            case "rm":
+                dropIndex(subArgs);
+                break;
+            case "status":
+            case "show":
+                showStatus(subArgs);
+                break;
+            case "enable":
+                enableIndex(subArgs);
+                break;
+            case "disable":
+                disableIndex(subArgs);
+                break;
+            case "reindex":
+                reindex(subArgs);
+                break;
+            case "describe":
+                describeIndex(subArgs);
+                break;
+            case "repair":
+                repairIndex(subArgs);
+                break;
+            default:
+                System.out.println("Unknown subcommand: " + subCmd);
+                showUsage();
+        }
+    }
+
+    private void showUsage() {
+        System.out.println("\n=== Index Commands ===");
+        System.out.println("  index list [--json]            - List all indexes");
+        System.out.println("  index create <name> <key> <type> [-u] - Create composite index");
+        System.out.println("  index drop <name> [-f]         - Drop index");
+        System.out.println("  index status <name>            - Show index status");
+        System.out.println("  index enable <name>            - Enable index");
+        System.out.println("  index disable <name>           - Disable index");
+        System.out.println("  index reindex <name>           - Reindex existing data");
+        System.out.println("  index describe <name>          - Describe index details");
+        System.out.println("  index repair <name>            - Repair index issues");
+        System.out.println();
+    }
+
+    private void listIndexes(String args) {
+        boolean jsonOutput = args.contains("--json");
+        JanusGraph graph = graphManager.getGraph();
+        JanusGraphManagement mgmt = graph.openManagement();
+        try {
+            List<JanusGraphIndex> indexes = new ArrayList<>();
+            for (JanusGraphIndex idx : mgmt.getGraphIndexes(Vertex.class)) {
+                indexes.add(idx);
+            }
+            for (JanusGraphIndex idx : mgmt.getGraphIndexes(Edge.class)) {
+                if (!containsIndex(indexes, idx)) {
+                    indexes.add(idx);
+                }
+            }
+            List<Map<String, Object>> indexList = new ArrayList<>();
+
+            for (JanusGraphIndex idx : indexes) {
+                Map<String, Object> info = new LinkedHashMap<>();
+                info.put("name", idx.name());
+                info.put("status", idx.getFieldKeys().length > 0 ? String.valueOf(idx.getIndexStatus(idx.getFieldKeys()[0])) : "UNKNOWN");
+                info.put("type", idx.isMixedIndex() ? "Mixed" : "Composite");
+                info.put("element", idx.getIndexedElement().getSimpleName());
+
+                List<String> keyNames = new ArrayList<>();
+                for (var key : idx.getFieldKeys()) {
+                    keyNames.add(key.name());
+                }
+                info.put("keys", keyNames);
+                if (idx.isUnique()) {
+                    info.put("unique", true);
+                }
+                indexList.add(info);
+            }
+
+            if (jsonOutput) {
+                System.out.println(JsonFormatter.toJson(indexList));
+            } else {
+                List<String[]> rows = new ArrayList<>();
+                rows.add(new String[]{"Name", "Status", "Type", "Element", "Keys", "Unique"});
+                for (var info : indexList) {
+                    rows.add(new String[]{
+                            (String) info.get("name"),
+                            (String) info.get("status"),
+                            (String) info.get("type"),
+                            (String) info.get("element"),
+                            info.get("keys").toString(),
+                            info.containsKey("unique") ? "Yes" : "No"
+                    });
+                }
+                TableFormatter.printTable(rows);
+            }
+        } finally {
+            mgmt.commit();
+        }
+    }
+
+    private void createIndex(String args) throws Exception {
+        String[] parts = args.split("\\s+");
+        if (parts.length < 3) {
+            System.out.println("Usage: index create <name> <propertyKey> <type> [-u]");
+            System.out.println("  type: vertex|edge");
+            System.out.println("  -u: unique index");
+            return;
+        }
+
+        String name = parts[0];
+        String key = parts[1];
+        String type = parts[2].toLowerCase();
+        boolean unique = args.contains("-u");
+
+        Class<? extends Element> elementClass = type.equals("edge") ?
+                Edge.class :
+                Vertex.class;
+
+        System.out.print("Enter data type (String/Integer/Long/Double/Boolean): ");
+        String dataTypeInput = graphManager.getScanner().nextLine().trim();
+        Class<?> dataType = getDataType(dataTypeInput);
+        if (dataType == null) {
+            System.out.println("Invalid data type, using String");
+            dataType = String.class;
+        }
+
+        IndexManager indexManager = new IndexManager(graphManager.getGraph());
+        boolean success = indexManager.createCompositeIndex(name, key, dataType, elementClass, unique);
+
+        if (success) {
+            System.out.println("✓ Index '" + name + "' created successfully");
+        } else {
+            System.out.println("✗ Failed to create index '" + name + "'");
+        }
+    }
+
+    private Class<?> getDataType(String input) {
+        switch (input.toLowerCase()) {
+            case "string": return String.class;
+            case "integer": return Integer.class;
+            case "long": return Long.class;
+            case "double": return Double.class;
+            case "boolean": return Boolean.class;
+            default: return null;
+        }
+    }
+
+    private void dropIndex(String args) throws Exception {
+        String[] parts = args.split("\\s+");
+        if (parts.length < 1) {
+            System.out.println("Usage: index drop <name> [-f]");
+            return;
+        }
+
+        String name = parts[0];
+        boolean force = args.contains("-f");
+
+        if (!force) {
+            System.out.print("Are you sure you want to drop index '" + name + "'? (y/N): ");
+            String confirm = graphManager.getScanner().nextLine().trim().toLowerCase();
+            if (!confirm.equals("y") && !confirm.equals("yes")) {
+                System.out.println("Operation cancelled");
+                return;
+            }
+        }
+
+        IndexManager indexManager = new IndexManager(graphManager.getGraph());
+        boolean success = indexManager.dropIndexSafely(name);
+
+        if (success) {
+            System.out.println("✓ Index '" + name + "' dropped successfully");
+        } else {
+            System.out.println("✗ Failed to drop index '" + name + "'");
+        }
+    }
+
+    private void showStatus(String name) {
+        if (name.isEmpty()) {
+            System.out.println("Usage: index status <name>");
+            return;
+        }
+
+        IndexManager indexManager = new IndexManager(graphManager.getGraph());
+        String status = indexManager.getIndexStatus(name);
+        System.out.println("Index '" + name + "' status: " + status);
+    }
+
+    private void enableIndex(String name) throws Exception {
+        if (name.isEmpty()) {
+            System.out.println("Usage: index enable <name>");
+            return;
+        }
+
+        IndexManager indexManager = new IndexManager(graphManager.getGraph());
+        boolean success = indexManager.enableIndex(name);
+
+        if (success) {
+            System.out.println("✓ Index '" + name + "' enabled successfully");
+        } else {
+            System.out.println("✗ Failed to enable index '" + name + "'");
+        }
+    }
+
+    private void disableIndex(String name) throws Exception {
+        if (name.isEmpty()) {
+            System.out.println("Usage: index disable <name>");
+            return;
+        }
+
+        IndexManager indexManager = new IndexManager(graphManager.getGraph());
+        boolean success = indexManager.disableIndex(name);
+
+        if (success) {
+            System.out.println("✓ Index '" + name + "' disabled successfully");
+        } else {
+            System.out.println("✗ Failed to disable index '" + name + "'");
+        }
+    }
+
+    private void reindex(String name) throws Exception {
+        if (name.isEmpty()) {
+            System.out.println("Usage: index reindex <name>");
+            return;
+        }
+
+        System.out.print("Reindexing may take a long time. Continue? (y/N): ");
+        String confirm = graphManager.getScanner().nextLine().trim().toLowerCase();
+        if (!confirm.equals("y") && !confirm.equals("yes")) {
+            System.out.println("Operation cancelled");
+            return;
+        }
+
+        System.out.println("Starting reindex for '" + name + "'... This may take a while.");
+        long startTime = System.currentTimeMillis();
+
+        IndexManager indexManager = new IndexManager(graphManager.getGraph());
+        boolean success = indexManager.reindex(name);
+
+        long duration = (System.currentTimeMillis() - startTime) / 1000;
+
+        if (success) {
+            System.out.println("✓ Index '" + name + "' reindexed successfully (took " + duration + "s)");
+        } else {
+            System.out.println("✗ Failed to reindex '" + name + "'");
+        }
+    }
+
+    private void describeIndex(String name) {
+        if (name.isEmpty()) {
+            System.out.println("Usage: index describe <name>");
+            return;
+        }
+
+        JanusGraph graph = graphManager.getGraph();
+        JanusGraphManagement mgmt = graph.openManagement();
+        try {
+            var idx = mgmt.getGraphIndex(name);
+            if (idx == null) {
+                System.out.println("Index '" + name + "' not found");
+                return;
+            }
+
+            System.out.println("\n=== Index: " + name + " ===");
+            System.out.println("  Type: " + (idx.isMixedIndex() ? "Mixed" : "Composite"));
+            System.out.println("  Element: " + idx.getIndexedElement().getSimpleName());
+            System.out.println("  Unique: " + idx.isUnique());
+            System.out.println("  Status: " + (idx.getFieldKeys().length > 0 ? idx.getIndexStatus(idx.getFieldKeys()[0]) : "UNKNOWN"));
+            System.out.println("  Keys:");
+            for (var key : idx.getFieldKeys()) {
+                System.out.println("    - " + key.name() + " (" + key.dataType().getSimpleName() + ")");
+            }
+        } finally {
+            mgmt.commit();
+        }
+    }
+
+    private void repairIndex(String name) throws Exception {
+        if (name.isEmpty()) {
+            System.out.println("Usage: index repair <name>");
+            return;
+        }
+
+        System.out.println("Attempting to repair index '" + name + "'...");
+
+        JanusGraph graph = graphManager.getGraph();
+        JanusGraphManagement mgmt = graph.openManagement();
+        try {
+            var idx = mgmt.getGraphIndex(name);
+            if (idx == null) {
+                System.out.println("Index '" + name + "' not found");
+                return;
+            }
+
+            String status = String.valueOf(idx.getFieldKeys().length > 0 ? idx.getIndexStatus(idx.getFieldKeys()[0]) : "UNKNOWN");
+            System.out.println("Current status: " + status);
+
+            if (status.contains("INSTALLED")) {
+                System.out.println("Index is INSTALLED. Attempting to enable...");
+                mgmt.updateIndex(idx, SchemaAction.ENABLE_INDEX).get();
+                mgmt.commit();
+                System.out.println("Index enabled, waiting for registration...");
+                Thread.sleep(5000);
+            } else if (status.contains("REGISTERED")) {
+                System.out.println("Index is REGISTERED. Attempting reindex...");
+                mgmt.updateIndex(idx, SchemaAction.REINDEX).get();
+                mgmt.commit();
+                System.out.println("Reindex started...");
+            } else if (status.contains("DISABLED")) {
+                System.out.println("Index is DISABLED. Attempting to enable...");
+                mgmt.updateIndex(idx, SchemaAction.ENABLE_INDEX).get();
+                mgmt.commit();
+                System.out.println("Index enabled");
+            } else {
+                System.out.println("Index in state '" + status + "' cannot be auto-repaired");
+            }
+
+            Thread.sleep(3000);
+
+            mgmt = graph.openManagement();
+            idx = mgmt.getGraphIndex(name);
+            System.out.println("New status: " + (idx.getFieldKeys().length > 0 ? idx.getIndexStatus(idx.getFieldKeys()[0]) : "UNKNOWN"));
+            mgmt.commit();
+
+        } finally {
+            mgmt.commit();
+        }
+    }
+
+    private boolean containsIndex(List<JanusGraphIndex> indexes, JanusGraphIndex idx) {
+        for (JanusGraphIndex existing : indexes) {
+            if (existing.name().equals(idx.name())) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
