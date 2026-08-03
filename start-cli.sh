@@ -49,6 +49,7 @@ if [ -d "/etc/hadoop/conf" ]; then
 fi
 
 echo "Starting JanusGraph CLI..."
+echo "APP_HOME: $APP_HOME"
 echo "Config: $CONFIG_PATH"
 echo ""
 

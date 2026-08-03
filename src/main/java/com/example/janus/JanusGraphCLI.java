@@ -10,6 +10,7 @@ import com.example.janus.commands.SchemaCommand;
 import com.example.janus.commands.ScriptCommand;
 import com.example.janus.commands.SystemCommand;
 import com.example.janus.core.GraphManager;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.terminal.Terminal;
@@ -18,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.security.PrivilegedExceptionAction;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -31,8 +33,8 @@ public class JanusGraphCLI {
     private final Map<String, Command> commands;
     private volatile boolean running = true;
 
-    public JanusGraphCLI(String configPath) {
-        this.graphManager = new GraphManager(configPath);
+    public JanusGraphCLI(GraphManager graphManager) {
+        this.graphManager = graphManager;
         this.commands = initializeCommands();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -98,6 +100,15 @@ public class JanusGraphCLI {
         System.out.println();
         System.out.println("Type 'help' for available commands, 'exit' to quit");
         System.out.println("Connected to: " + graphManager.getConfigPath());
+        if (graphManager.isKerberosEnabled()) {
+            System.out.println("Kerberos: enabled (" + graphManager.getLoginUser().getUserName() + ")");
+        } else {
+            System.out.println("Kerberos: disabled");
+        }
+        long vertexCount = graphManager.testConnection();
+        System.out.println(vertexCount >= 0
+                ? "Connection test: OK (vertex count = " + vertexCount + ")"
+                : "Connection test: WARNING (see logs; continuing)");
         System.out.println();
 
         Terminal terminal = TerminalBuilder.builder()
@@ -126,7 +137,9 @@ public class JanusGraphCLI {
                 while (line.endsWith("\\")) {
                     line = line.substring(0, line.length() - 1);
                     String next = reader.readLine(PROMPT + "  ");
-                    if (next == null) break;
+                    if (next == null) {
+                        break;
+                    }
                     line += next.trim();
                 }
 
@@ -304,8 +317,18 @@ public class JanusGraphCLI {
                 "janusgraph-hbase.properties";
 
         try {
-            JanusGraphCLI cli = new JanusGraphCLI(configPath);
-            cli.start();
+            GraphManager graphManager = new GraphManager(configPath);
+            JanusGraphCLI cli = new JanusGraphCLI(graphManager);
+
+            UserGroupInformation login = graphManager.getLoginUser();
+            if (login != null) {
+                login.doAs((PrivilegedExceptionAction<Void>) () -> {
+                    cli.start();
+                    return null;
+                });
+            } else {
+                cli.start();
+            }
         } catch (Exception e) {
             System.err.println("Failed to start JanusGraph CLI: " + e.getMessage());
             e.printStackTrace();

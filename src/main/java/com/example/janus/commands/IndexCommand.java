@@ -148,27 +148,54 @@ public class IndexCommand implements Command {
     private void createIndex(String args) throws Exception {
         String[] parts = args.split("\\s+");
         if (parts.length < 3) {
-            System.out.println("Usage: index create <name> <propertyKey> <type> [-u]");
-            System.out.println("  type: vertex|edge");
+            System.out.println("Usage: index create <name> <key> <dataType> [elementType] [-u]");
+            System.out.println("       index create <name> <key> <elementType> [-u]");
+            System.out.println("  dataType: String/Integer/Long/Double/Boolean");
+            System.out.println("  elementType: vertex(v)/edge(e), defaults to vertex");
             System.out.println("  -u: unique index");
+            System.out.println("Examples:");
+            System.out.println("  index create byName name String");
+            System.out.println("  index create byWeight weight Double edge");
+            System.out.println("  index create byName name vertex -u");
             return;
         }
 
         String name = parts[0];
         String key = parts[1];
-        String type = parts[2].toLowerCase();
         boolean unique = args.contains("-u");
 
-        Class<? extends Element> elementClass = type.equals("edge") ?
-                Edge.class :
-                Vertex.class;
+        // Collect non-flag positional args after name and key
+        java.util.List<String> posArgs = new java.util.ArrayList<>();
+        for (int i = 2; i < parts.length; i++) {
+            if (!parts[i].equals("-u")) {
+                posArgs.add(parts[i].toLowerCase());
+            }
+        }
 
-        System.out.print("Enter data type (String/Integer/Long/Double/Boolean): ");
-        String dataTypeInput = graphManager.getScanner().nextLine().trim();
-        Class<?> dataType = getDataType(dataTypeInput);
+        Class<? extends Element> elementClass = Vertex.class;
+        Class<?> dataType = null;
+
+        if (posArgs.size() >= 2) {
+            // JanusApp style: <dataType> [elementType]
+            dataType = getDataType(posArgs.get(0));
+            elementClass = parseElementType(posArgs.get(1));
+        } else if (posArgs.size() == 1) {
+            String arg = posArgs.get(0);
+            // Try dataType first, then fall back to elementType (backward compatible)
+            dataType = getDataType(arg);
+            if (dataType == null) {
+                elementClass = parseElementType(arg);
+            }
+        }
+
         if (dataType == null) {
-            System.out.println("Invalid data type, using String");
-            dataType = String.class;
+            System.out.print("Enter data type (String/Integer/Long/Double/Boolean): ");
+            String dataTypeInput = graphManager.getScanner().nextLine().trim();
+            dataType = getDataType(dataTypeInput);
+            if (dataType == null) {
+                System.out.println("Invalid data type, using String");
+                dataType = String.class;
+            }
         }
 
         IndexManager indexManager = new IndexManager(graphManager.getGraph());
@@ -189,6 +216,19 @@ public class IndexCommand implements Command {
             case "double": return Double.class;
             case "boolean": return Boolean.class;
             default: return null;
+        }
+    }
+
+    private Class<? extends Element> parseElementType(String typeName) {
+        switch (typeName.toLowerCase()) {
+            case "vertex":
+            case "v":
+                return Vertex.class;
+            case "edge":
+            case "e":
+                return Edge.class;
+            default:
+                return Vertex.class;
         }
     }
 

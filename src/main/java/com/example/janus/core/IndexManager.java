@@ -1,15 +1,21 @@
 package com.example.janus.core;
 
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.janusgraph.core.Cardinality;
 import org.janusgraph.core.JanusGraph;
 import org.janusgraph.core.PropertyKey;
+import org.janusgraph.core.schema.JanusGraphIndex;
 import org.janusgraph.core.schema.JanusGraphManagement;
 import org.janusgraph.core.schema.SchemaAction;
 import org.janusgraph.core.schema.SchemaStatus;
 import org.janusgraph.graphdb.database.management.ManagementSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import java.time.Duration;
 
@@ -56,7 +62,7 @@ public class IndexManager {
                 mgmt.commit();
                 log.info("Index '{}' definition committed", indexName);
 
-                boolean registered = waitForIndexStatus(indexName, SchemaStatus.REGISTERED, 60);
+                boolean registered = registerIndex(indexName);
                 if (!registered) {
                     log.error("Index '{}' failed to reach REGISTERED status", indexName);
                     return false;
@@ -75,6 +81,10 @@ public class IndexManager {
         }
     }
 
+    public boolean createCompositeIndex(String indexName, String propertyKey, Class<?> dataType) {
+        return createCompositeIndex(indexName, propertyKey, dataType, Vertex.class, true);
+    }
+
     private boolean waitForIndexStatus(String indexName, SchemaStatus targetStatus, int timeoutSeconds) {
         try {
             ManagementSystem.awaitGraphIndexStatus(graph, indexName)
@@ -86,6 +96,30 @@ public class IndexManager {
             log.error("Failed to wait for index '{}' to reach status {}", indexName, targetStatus, e);
             return false;
         }
+    }
+
+    private boolean registerIndex(String indexName) {
+        try {
+            JanusGraphManagement mgmt = graph.openManagement();
+            try {
+                var index = mgmt.getGraphIndex(indexName);
+                if (index == null) {
+                    log.error("Index '{}' not found for REGISTER_INDEX", indexName);
+                    return false;
+                }
+                mgmt.updateIndex(index, SchemaAction.REGISTER_INDEX).get();
+                mgmt.commit();
+                log.info("REGISTER_INDEX action submitted for index: {}", indexName);
+            } catch (Exception e) {
+                mgmt.rollback();
+                log.error("Failed to register index '{}'", indexName, e);
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("Error registering index '{}'", indexName, e);
+            return false;
+        }
+        return waitForIndexStatus(indexName, SchemaStatus.REGISTERED, 60);
     }
 
     private boolean enableIndexWithReindex(String indexName) {
@@ -107,6 +141,24 @@ public class IndexManager {
             log.error("Error enabling index '{}'", indexName, e);
             return false;
         }
+    }
+
+    public List<JanusGraphIndex> listIndexes() {
+        List<JanusGraphIndex> result = new ArrayList<>();
+        JanusGraphManagement mgmt = graph.openManagement();
+        try {
+            for (JanusGraphIndex idx : mgmt.getGraphIndexes(Vertex.class)) {
+                result.add(idx);
+            }
+            for (JanusGraphIndex idx : mgmt.getGraphIndexes(Edge.class)) {
+                if (result.stream().noneMatch(i -> i.name().equals(idx.name()))) {
+                    result.add(idx);
+                }
+            }
+        } finally {
+            mgmt.commit();
+        }
+        return result;
     }
 
     public String getIndexStatus(String indexName) {
@@ -196,27 +248,42 @@ public class IndexManager {
         log.warn("Dropping index: {}", indexName);
 
         try {
-            // 先检查当前状态
-            String status = getIndexStatus(indexName);
-            if ("NOT_FOUND".equals(status)) {
+            JanusGraphManagement mgmt = graph.openManagement();
+            var index = mgmt.getGraphIndex(indexName);
+            if (index == null) {
+                mgmt.commit();
                 log.warn("Index '{}' does not exist", indexName);
                 return true;
             }
+            SchemaStatus status = getIndexStatusSafely(index);
+            mgmt.commit();
 
-            // 如果已经是 DISABLED，直接删除
-            if (status.contains("DISABLED")) {
-                return removeIndexDirectly(indexName);
-            }
-
-            // 否则先禁用
-            boolean disabled = disableIndex(indexName);
-            if (!disabled) {
-                log.error("Failed to disable index '{}'", indexName);
+            if (status == null) {
+                log.warn("Index '{}' has no status", indexName);
                 return false;
             }
 
-            Thread.sleep(1000);
-            return removeIndexDirectly(indexName);
+            if (status == SchemaStatus.INSTALLED) {
+                log.info("Index '{}' is INSTALLED, registering first...", indexName);
+                if (!registerIndex(indexName)) {
+                    return false;
+                }
+                status = SchemaStatus.REGISTERED;
+            }
+
+            if (status == SchemaStatus.REGISTERED || status == SchemaStatus.ENABLED) {
+                if (!disableIndex(indexName)) {
+                    return false;
+                }
+                status = SchemaStatus.DISABLED;
+            }
+
+            if (status == SchemaStatus.DISABLED) {
+                return removeIndexDirectly(indexName);
+            }
+
+            log.error("Index '{}' in unexpected state '{}'", indexName, status);
+            return false;
 
         } catch (Exception e) {
             log.error("Error dropping index '{}'", indexName, e);
