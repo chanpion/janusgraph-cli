@@ -325,7 +325,7 @@ public class IndexManager {
                     mgmt.commit();
                     return false;
                 }
-                mgmt.updateIndex(indexToRemove, SchemaAction.DROP_INDEX).get();
+                mgmt.updateIndex(indexToRemove, SchemaAction.REMOVE_INDEX).get();
                 mgmt.commit();
                 log.info("Index '{}' removed successfully", indexName);
                 return true;
