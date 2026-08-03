@@ -1,6 +1,6 @@
-package com.example.janus.commands;
+package com.chenpp.janus.commands;
 
-import com.example.janus.core.GraphManager;
+import com.chenpp.janus.core.GraphManager;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -9,6 +9,9 @@ import org.janusgraph.core.JanusGraph;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * @author April.Chen
+ */
 public class QueryCommand implements Command {
 
     private final GraphManager graphManager;

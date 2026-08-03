@@ -1,11 +1,19 @@
-package com.example.janus.commands;
+package com.chenpp.janus.commands;
 
-import com.example.janus.core.GraphManager;
+import com.chenpp.janus.core.GraphManager;
 
-import java.lang.management.*;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
+import java.lang.management.OperatingSystemMXBean;
+import java.lang.management.ThreadMXBean;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Date;
 
+/**
+ * @author April.Chen
+ */
 public class SystemCommand implements Command {
 
     private final GraphManager graphManager;

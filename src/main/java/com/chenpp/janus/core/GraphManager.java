@@ -1,9 +1,9 @@
-package com.example.janus.core;
+package com.chenpp.janus.core;
 
-import org.janusgraph.core.JanusGraph;
-import org.janusgraph.core.JanusGraphFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.janusgraph.core.JanusGraph;
+import org.janusgraph.core.JanusGraphFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,6 +13,9 @@ import java.security.PrivilegedExceptionAction;
 import java.util.Properties;
 import java.util.Scanner;
 
+/**
+ * @author April.Chen
+ */
 public class GraphManager {
 
     private static final Logger log = LoggerFactory.getLogger(GraphManager.class);
@@ -139,6 +142,48 @@ public class GraphManager {
         } catch (Exception e) {
             log.warn("Test query failed, but connection may still be valid", e);
             return -1L;
+        }
+    }
+
+    public String getCurrentGraphName() {
+        return config.getProperty("storage.hbase.table");
+    }
+
+    public boolean switchToGraph(String tableName) {
+        String currentTable = config.getProperty("storage.hbase.table");
+        if (tableName == null || tableName.trim().isEmpty()) {
+            System.out.println("Graph name cannot be empty");
+            return false;
+        }
+
+        if (tableName.equals(currentTable)) {
+            System.out.println("Already connected to graph '" + tableName + "'");
+            return true;
+        }
+
+        System.out.println("Switching from '" + currentTable + "' to '" + tableName + "'...");
+
+        close();
+
+        config.setProperty("storage.hbase.table", tableName);
+        try {
+            connect();
+            long count = testConnection();
+            if (count >= 0) {
+                System.out.println("Switched to graph '" + tableName + "' (vertex count: " + count + ")");
+                return true;
+            } else {
+                System.out.println("Switched to graph '" + tableName + "' (new graph, no data yet)");
+                return true;
+            }
+        } catch (Exception e) {
+            System.out.println("Failed to switch to graph '" + tableName + "': " + e.getMessage());
+            config.setProperty("storage.hbase.table", currentTable);
+            try {
+                connect();
+            } catch (Exception ignored) {
+            }
+            return false;
         }
     }
 

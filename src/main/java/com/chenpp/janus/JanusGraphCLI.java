@@ -1,15 +1,16 @@
-package com.example.janus;
+package com.chenpp.janus;
 
-import com.example.janus.commands.BackupCommand;
-import com.example.janus.commands.BatchCommand;
-import com.example.janus.commands.Command;
-import com.example.janus.commands.IndexCommand;
-import com.example.janus.commands.MonitorCommand;
-import com.example.janus.commands.QueryCommand;
-import com.example.janus.commands.SchemaCommand;
-import com.example.janus.commands.ScriptCommand;
-import com.example.janus.commands.SystemCommand;
-import com.example.janus.core.GraphManager;
+import com.chenpp.janus.commands.BackupCommand;
+import com.chenpp.janus.commands.BatchCommand;
+import com.chenpp.janus.commands.Command;
+import com.chenpp.janus.commands.GraphCommand;
+import com.chenpp.janus.commands.IndexCommand;
+import com.chenpp.janus.commands.MonitorCommand;
+import com.chenpp.janus.commands.QueryCommand;
+import com.chenpp.janus.commands.SchemaCommand;
+import com.chenpp.janus.commands.ScriptCommand;
+import com.chenpp.janus.commands.SystemCommand;
+import com.chenpp.janus.core.GraphManager;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -23,6 +24,9 @@ import java.security.PrivilegedExceptionAction;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * @author April.Chen
+ */
 public class JanusGraphCLI {
 
     private static final Logger log = LoggerFactory.getLogger(JanusGraphCLI.class);
@@ -83,6 +87,10 @@ public class JanusGraphCLI {
         // 脚本命令
         ScriptCommand scriptCmd = new ScriptCommand(graphManager, this);
         cmds.put("script", scriptCmd);
+
+        // 图管理命令
+        GraphCommand graphCmd = new GraphCommand(graphManager);
+        cmds.put("graph", graphCmd);
 
         // 内置命令
         cmds.put("help", new HelpCommand(commands));
@@ -265,6 +273,11 @@ public class JanusGraphCLI {
             System.out.println("SCRIPT OPERATIONS:");
             System.out.println("  script run <file>            - Execute script file");
             System.out.println("  script list                  - List available scripts");
+            System.out.println();
+            System.out.println("GRAPH OPERATIONS:");
+            System.out.println("  graph create <name>          - Create and switch to a new graph");
+            System.out.println("  graph current                - Show current graph name");
+            System.out.println("  graph list                   - List available graphs");
             System.out.println();
             System.out.println("SYSTEM OPERATIONS:");
             System.out.println("  system info                  - Show system information");

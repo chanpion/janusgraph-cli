@@ -1,9 +1,9 @@
-package com.example.janus.commands;
+package com.chenpp.janus.commands;
 
-import com.example.janus.core.GraphManager;
-import com.example.janus.core.IndexManager;
-import com.example.janus.utils.JsonFormatter;
-import com.example.janus.utils.TableFormatter;
+import com.chenpp.janus.core.GraphManager;
+import com.chenpp.janus.core.IndexManager;
+import com.chenpp.janus.utils.JsonFormatter;
+import com.chenpp.janus.utils.TableFormatter;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -18,6 +18,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @author April.Chen
+ */
 public class IndexCommand implements Command {
 
     private final GraphManager graphManager;
@@ -113,7 +116,7 @@ public class IndexCommand implements Command {
                 info.put("element", idx.getIndexedElement().getSimpleName());
 
                 List<String> keyNames = new ArrayList<>();
-                for (var key : idx.getFieldKeys()) {
+                for (PropertyKey key : idx.getFieldKeys()) {
                     keyNames.add(key.name());
                 }
                 info.put("keys", keyNames);
@@ -128,7 +131,7 @@ public class IndexCommand implements Command {
             } else {
                 List<String[]> rows = new ArrayList<>();
                 rows.add(new String[]{"Name", "Status", "Type", "Element", "Keys", "Unique"});
-                for (var info : indexList) {
+                for (Map<String, Object> info : indexList) {
                     rows.add(new String[]{
                             (String) info.get("name"),
                             (String) info.get("status"),
@@ -198,7 +201,7 @@ public class IndexCommand implements Command {
             }
         }
 
-        IndexManager indexManager = new IndexManager(graphManager.getGraph());
+        IndexManager indexManager = new IndexManager(graphManager);
         boolean success = indexManager.createCompositeIndex(name, key, dataType, elementClass, unique);
 
         if (success) {
@@ -210,12 +213,18 @@ public class IndexCommand implements Command {
 
     private Class<?> getDataType(String input) {
         switch (input.toLowerCase()) {
-            case "string": return String.class;
-            case "integer": return Integer.class;
-            case "long": return Long.class;
-            case "double": return Double.class;
-            case "boolean": return Boolean.class;
-            default: return null;
+            case "string":
+                return String.class;
+            case "integer":
+                return Integer.class;
+            case "long":
+                return Long.class;
+            case "double":
+                return Double.class;
+            case "boolean":
+                return Boolean.class;
+            default:
+                return null;
         }
     }
 
@@ -251,7 +260,7 @@ public class IndexCommand implements Command {
             }
         }
 
-        IndexManager indexManager = new IndexManager(graphManager.getGraph());
+        IndexManager indexManager = new IndexManager(graphManager);
         boolean success = indexManager.dropIndexSafely(name);
 
         if (success) {
@@ -267,7 +276,7 @@ public class IndexCommand implements Command {
             return;
         }
 
-        IndexManager indexManager = new IndexManager(graphManager.getGraph());
+        IndexManager indexManager = new IndexManager(graphManager);
         String status = indexManager.getIndexStatus(name);
         System.out.println("Index '" + name + "' status: " + status);
     }
@@ -278,7 +287,7 @@ public class IndexCommand implements Command {
             return;
         }
 
-        IndexManager indexManager = new IndexManager(graphManager.getGraph());
+        IndexManager indexManager = new IndexManager(graphManager);
         boolean success = indexManager.enableIndex(name);
 
         if (success) {
@@ -294,7 +303,7 @@ public class IndexCommand implements Command {
             return;
         }
 
-        IndexManager indexManager = new IndexManager(graphManager.getGraph());
+        IndexManager indexManager = new IndexManager(graphManager);
         boolean success = indexManager.disableIndex(name);
 
         if (success) {
@@ -320,7 +329,7 @@ public class IndexCommand implements Command {
         System.out.println("Starting reindex for '" + name + "'... This may take a while.");
         long startTime = System.currentTimeMillis();
 
-        IndexManager indexManager = new IndexManager(graphManager.getGraph());
+        IndexManager indexManager = new IndexManager(graphManager);
         boolean success = indexManager.reindex(name);
 
         long duration = (System.currentTimeMillis() - startTime) / 1000;
@@ -341,7 +350,7 @@ public class IndexCommand implements Command {
         JanusGraph graph = graphManager.getGraph();
         JanusGraphManagement mgmt = graph.openManagement();
         try {
-            var idx = mgmt.getGraphIndex(name);
+            JanusGraphIndex idx = mgmt.getGraphIndex(name);
             if (idx == null) {
                 System.out.println("Index '" + name + "' not found");
                 return;
@@ -353,7 +362,7 @@ public class IndexCommand implements Command {
             System.out.println("  Unique: " + idx.isUnique());
             System.out.println("  Status: " + (idx.getFieldKeys().length > 0 ? idx.getIndexStatus(idx.getFieldKeys()[0]) : "UNKNOWN"));
             System.out.println("  Keys:");
-            for (var key : idx.getFieldKeys()) {
+            for (PropertyKey key : idx.getFieldKeys()) {
                 System.out.println("    - " + key.name() + " (" + key.dataType().getSimpleName() + ")");
             }
         } finally {
@@ -372,7 +381,7 @@ public class IndexCommand implements Command {
         JanusGraph graph = graphManager.getGraph();
         JanusGraphManagement mgmt = graph.openManagement();
         try {
-            var idx = mgmt.getGraphIndex(name);
+            JanusGraphIndex idx = mgmt.getGraphIndex(name);
             if (idx == null) {
                 System.out.println("Index '" + name + "' not found");
                 return;

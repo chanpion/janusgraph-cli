@@ -155,6 +155,136 @@ sys  = system
 exit = quit
 ```
 
+## 示例脚本
+
+项目提供 `scripts/example.script`，演示所有命令的完整用法。通过 `script run example.script` 执行，`#` 开头的行为注释（执行时忽略）：
+
+```bash
+# ==================== 系统信息 ====================
+system info
+system metrics
+system time
+
+# ==================== Schema 管理 ====================
+# 列出当前所有 Schema 元素（属性键、顶点标签、边标签）
+schema list
+
+# 创建属性键（支持类型: String, Integer, Long, Double, Boolean）
+schema create-key name String
+schema create-key age Integer
+schema create-key email String
+schema create-key weight Double
+schema create-key active Boolean
+
+# 查看属性键详情
+schema show name
+schema show age
+
+# 创建顶点标签
+schema create-label person vertex
+schema create-label company vertex
+
+# 创建边标签
+schema create-label knows edge
+schema create-label works_at edge
+
+# 查看边标签详情
+schema show knows
+
+# Schema 统计
+schema stats
+
+# ==================== 索引管理 ====================
+# 列出所有索引
+index list
+
+# 创建复合索引（类型: String/Integer/Long/Double/Boolean, 元素: vertex/edge）
+# 格式: index create <名称> <属性键> <类型> [vertex|edge] [-u]
+index create byName name String vertex -u
+index create byAge age Integer vertex
+index create byWeight weight Double edge
+
+# 查看索引状态
+index status byName
+index status byAge
+
+# 查看索引详情
+index describe byName
+
+# JSON 格式列出索引
+index list --json
+
+# 禁用 / 启用索引
+index disable byAge
+index status byAge
+index enable byAge
+
+# ==================== 数据查询 ====================
+# 统计顶点和边数量
+query V().count()
+query E().count()
+batch count
+
+# 查询顶点
+query V().limit(10)
+query V().has('name', 'test').limit(10)
+
+# 查询边
+query E().limit(5)
+
+# 采样数据
+batch sample 5
+
+# ==================== 数据导入导出 ====================
+# 导出数据（CSV 格式）
+batch export export.csv
+
+# 导出数据（JSON 格式）
+batch export export.json --json
+
+# 导入数据
+# batch import data.csv --csv
+# batch import data.json --json
+
+# ==================== 备份管理 ====================
+# 创建备份
+backup create demo-backup
+
+# 列出所有备份
+backup list
+
+# 恢复备份
+# backup restore demo-backup.json
+
+# 删除备份
+# backup delete demo-backup.json
+
+# ==================== 监控 ====================
+# 启动监控（每 5 秒刷新一次）
+monitor start 5
+
+# 查看监控状态
+monitor status
+
+# 停止监控
+monitor stop
+
+# ==================== 配置管理 ====================
+# 查看当前配置（敏感信息已脱敏）
+config show
+
+# ==================== 重新索引 ====================
+# 对已有数据重新构建索引（大数据量时耗时较长）
+# index reindex byName
+
+# ==================== 删除操作（危险，已注释） ====================
+# 删除索引
+# index drop byAge -f
+
+# 删除属性键
+# schema drop-key weight
+```
+
 ## 配置
 
 ### 配置文件
@@ -257,7 +387,7 @@ Client {
 ### 包结构
 
 ```
-com.example.janus
+com.chenpp.janus
 ├── JanusGraphCLI.java          # 入口、REPL 循环、命令注册
 ├── core/
 │   ├── GraphManager.java       # JanusGraph 连接生命周期

@@ -1,11 +1,14 @@
-package com.example.janus.commands;
+package com.chenpp.janus.commands;
 
-import com.example.janus.JanusGraphCLI;
-import com.example.janus.core.GraphManager;
+import com.chenpp.janus.JanusGraphCLI;
+import com.chenpp.janus.core.GraphManager;
 
-import java.io.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.File;
 
+/**
+ * @author April.Chen
+ */
 public class ScriptCommand implements Command {
     
     private final GraphManager graphManager;
@@ -72,7 +75,7 @@ public class ScriptCommand implements Command {
         System.out.println("Running script: " + file.getName());
         long startTime = System.currentTimeMillis();
         
-        try (BufferedReader reader = new BufferedReader(new FileReader(file, java.nio.charset.StandardCharsets.UTF_8))) {
+        try (BufferedReader reader = new BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(file), java.nio.charset.StandardCharsets.UTF_8))) {
             String line;
             int lineNumber = 0;
             while ((line = reader.readLine()) != null) {

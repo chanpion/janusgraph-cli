@@ -1,6 +1,6 @@
-package com.example.janus.commands;
+package com.chenpp.janus.commands;
 
-import com.example.janus.core.GraphManager;
+import com.chenpp.janus.core.GraphManager;
 import org.janusgraph.core.JanusGraph;
 import org.janusgraph.core.PropertyKey;
 import org.janusgraph.core.EdgeLabel;
@@ -11,6 +11,9 @@ import org.janusgraph.core.schema.JanusGraphManagement;
 
 import java.util.*;
 
+/**
+ * @author April.Chen
+ */
 public class SchemaCommand implements Command {
 
     private final GraphManager graphManager;

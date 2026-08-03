@@ -1,4 +1,4 @@
-package com.example.janus.core;
+package com.chenpp.janus.core;
 
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -17,15 +17,18 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-import java.time.Duration;
-
+/**
+ * @author April.Chen
+ */
 public class IndexManager {
 
     private static final Logger log = LoggerFactory.getLogger(IndexManager.class);
-    private final JanusGraph graph;
+    private final GraphManager graphManager;
+    private JanusGraph graph;
 
-    public IndexManager(JanusGraph graph) {
-        this.graph = graph;
+    public IndexManager(GraphManager graphManager) {
+        this.graphManager = graphManager;
+        this.graph = graphManager.getGraph();
     }
 
     public boolean createCompositeIndex(String indexName, String propertyKey,
@@ -53,7 +56,7 @@ public class IndexManager {
                     return true;
                 }
 
-                var builder = mgmt.buildIndex(indexName, elementClass).addKey(key);
+                JanusGraphManagement.IndexBuilder builder = mgmt.buildIndex(indexName, elementClass).addKey(key);
                 if (unique) {
                     builder.unique();
                 }
@@ -64,9 +67,16 @@ public class IndexManager {
 
                 boolean registered = registerIndex(indexName);
                 if (!registered) {
-                    log.error("Index '{}' failed to reach REGISTERED status", indexName);
-                    return false;
+                    // 超时后检查实际状态，可能已 REGISTERED
+                    String status = getIndexStatus(indexName);
+                    if ("REGISTERED".equals(status) || "ENABLED".equals(status)) {
+                        log.info("Index '{}' actually reached {} despite timeout, proceeding", indexName, status);
+                    } else {
+                        log.error("Index '{}' stuck at {}, cannot proceed to REINDEX", indexName, status);
+                        return false;
+                    }
                 }
+
 
                 return enableIndexWithReindex(indexName);
 
@@ -100,9 +110,10 @@ public class IndexManager {
 
     private boolean registerIndex(String indexName) {
         try {
+            graph.tx().rollback();
             JanusGraphManagement mgmt = graph.openManagement();
             try {
-                var index = mgmt.getGraphIndex(indexName);
+                JanusGraphIndex index = mgmt.getGraphIndex(indexName);
                 if (index == null) {
                     log.error("Index '{}' not found for REGISTER_INDEX", indexName);
                     return false;
@@ -119,14 +130,57 @@ public class IndexManager {
             log.error("Error registering index '{}'", indexName, e);
             return false;
         }
-        return waitForIndexStatus(indexName, SchemaStatus.REGISTERED, 60);
+
+        if (!waitForIndexStatus(indexName, SchemaStatus.REGISTERED, 300)) {
+            // 等待超时：可能是本地 schema 缓存未失效，重开图后从存储读取真实状态
+            log.warn("REGISTER_INDEX wait timed out for '{}', reopening graph to refresh schema cache", indexName);
+            refreshGraph();
+            String actual = getIndexStatus(indexName);
+            if ("REGISTERED".equals(actual) || "ENABLED".equals(actual)) {
+                log.info("Index '{}' is actually {} after graph reopen (schema cache was stale)", indexName, actual);
+                return true;
+            }
+            log.error("Index '{}' confirmed stuck at {} after graph reopen", indexName, actual);
+            return false;
+        }
+        return true;
+    }
+
+    private void refreshGraph() {
+        try {
+            graphManager.close();
+            this.graph = graphManager.getGraph();
+            log.info("Graph reopened to refresh schema cache");
+        } catch (Exception e) {
+            log.error("Failed to reopen graph: {}", e.getMessage());
+        }
     }
 
     private boolean enableIndexWithReindex(String indexName) {
         try {
+            // 先检查当前状态
+            String currentStatus = getIndexStatus(indexName);
+            if ("ENABLED".equals(currentStatus)) {
+                log.info("Index '{}' is already ENABLED", indexName);
+                return true;
+            }
+            if ("INSTALLED".equals(currentStatus)) {
+                log.warn("Index '{}' is still INSTALLED, attempting REGISTER_INDEX first", indexName);
+                if (!registerIndex(indexName)) {
+                    log.error("Index '{}' still stuck at INSTALLED after registration retry", indexName);
+                    return false;
+                }
+            }
+
             JanusGraphManagement mgmt = graph.openManagement();
             try {
-                mgmt.updateIndex(mgmt.getGraphIndex(indexName), SchemaAction.REINDEX).get();
+                JanusGraphIndex index = mgmt.getGraphIndex(indexName);
+                if (index == null) {
+                    log.error("Index '{}' not found for REINDEX", indexName);
+                    mgmt.rollback();
+                    return false;
+                }
+                mgmt.updateIndex(index, SchemaAction.REINDEX).get();
                 mgmt.commit();
                 log.info("REINDEX action submitted for index: {}", indexName);
 
@@ -165,7 +219,7 @@ public class IndexManager {
         try {
             JanusGraphManagement mgmt = graph.openManagement();
             try {
-                var index = mgmt.getGraphIndex(indexName);
+                JanusGraphIndex index = mgmt.getGraphIndex(indexName);
                 if (index == null) {
                     return "NOT_FOUND";
                 }
@@ -182,7 +236,7 @@ public class IndexManager {
         try {
             JanusGraphManagement mgmt = graph.openManagement();
             try {
-                var index = mgmt.getGraphIndex(indexName);
+                JanusGraphIndex index = mgmt.getGraphIndex(indexName);
                 if (index == null) {
                     log.warn("Index '{}' not found", indexName);
                     return false;
@@ -204,7 +258,7 @@ public class IndexManager {
         try {
             JanusGraphManagement mgmt = graph.openManagement();
             try {
-                var index = mgmt.getGraphIndex(indexName);
+                JanusGraphIndex index = mgmt.getGraphIndex(indexName);
                 if (index == null) {
                     log.warn("Index '{}' not found", indexName);
                     return false;
@@ -224,9 +278,22 @@ public class IndexManager {
 
     public boolean reindex(String indexName) {
         try {
+            String currentStatus = getIndexStatus(indexName);
+            if ("ENABLED".equals(currentStatus)) {
+                log.info("Index '{}' is already ENABLED", indexName);
+                return true;
+            }
+            if ("INSTALLED".equals(currentStatus)) {
+                log.warn("Index '{}' is INSTALLED, running REGISTER_INDEX first", indexName);
+                if (!registerIndex(indexName)) {
+                    log.error("Index '{}' still stuck at INSTALLED after REGISTER_INDEX", indexName);
+                    return false;
+                }
+            }
+
             JanusGraphManagement mgmt = graph.openManagement();
             try {
-                var index = mgmt.getGraphIndex(indexName);
+                JanusGraphIndex index = mgmt.getGraphIndex(indexName);
                 if (index == null) {
                     log.warn("Index '{}' not found", indexName);
                     return false;
@@ -249,7 +316,7 @@ public class IndexManager {
 
         try {
             JanusGraphManagement mgmt = graph.openManagement();
-            var index = mgmt.getGraphIndex(indexName);
+            JanusGraphIndex index = mgmt.getGraphIndex(indexName);
             if (index == null) {
                 mgmt.commit();
                 log.warn("Index '{}' does not exist", indexName);
@@ -295,7 +362,7 @@ public class IndexManager {
         try {
             JanusGraphManagement mgmt = graph.openManagement();
             try {
-                var index = mgmt.getGraphIndex(indexName);
+                JanusGraphIndex index = mgmt.getGraphIndex(indexName);
                 if (index == null) {
                     mgmt.commit();
                     return true;
@@ -308,7 +375,7 @@ public class IndexManager {
                     return false;
                 }
 
-                mgmt.updateIndex(index, SchemaAction.DROP_INDEX).get();
+                mgmt.updateIndex(index, SchemaAction.REMOVE_INDEX).get();
                 mgmt.commit();
                 log.info("Index '{}' removed successfully", indexName);
                 return true;
@@ -322,6 +389,7 @@ public class IndexManager {
             return false;
         }
     }
+
     private SchemaStatus getIndexStatusSafely(org.janusgraph.core.schema.JanusGraphIndex index) {
         PropertyKey[] keys = index.getFieldKeys();
         if (keys.length == 0) {

@@ -1,8 +1,19 @@
-package com.example.janus.utils;
+package com.chenpp.janus.utils;
 
 import java.util.List;
 
+/**
+ * @author April.Chen
+ */
 public class TableFormatter {
+
+    private static String repeat(String s, int n) {
+        StringBuilder sb = new StringBuilder(s.length() * n);
+        for (int i = 0; i < n; i++) {
+            sb.append(s);
+        }
+        return sb.toString();
+    }
 
     public static void printTable(List<String[]> rows) {
         if (rows == null || rows.isEmpty()) {
@@ -34,7 +45,7 @@ public class TableFormatter {
     private static void printSeparator(int[] colWidths) {
         System.out.print("+");
         for (int width : colWidths) {
-            System.out.print("-".repeat(width + 2) + "+");
+            System.out.print(repeat("-", width + 2) + "+");
         }
         System.out.println();
     }
