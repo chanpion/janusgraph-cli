@@ -7,8 +7,11 @@ import org.janusgraph.core.JanusGraphFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.PrivilegedExceptionAction;
 import java.util.Properties;
 import java.util.Scanner;
@@ -36,12 +39,42 @@ public class GraphManager {
 
     private void loadConfig() {
         config = new Properties();
-        try (FileInputStream fis = new FileInputStream(configPath)) {
-            config.load(fis);
-            log.info("Configuration loaded from: {}", configPath);
+        try (InputStream in = openConfigStream(configPath)) {
+            config.load(in);
+            logConfigSummary();
         } catch (IOException e) {
             throw new RuntimeException("Failed to load config: " + configPath, e);
         }
+    }
+
+    /**
+     * 优先按文件系统路径读取配置，不存在时回退到 classpath 资源，
+     * 以便 jar 直接运行时能加载打入包内的默认配置。
+     */
+    private InputStream openConfigStream(String path) throws IOException {
+        File file = new File(path);
+        if (file.isFile()) {
+            log.info("Configuration loaded from file: {}", file.getAbsolutePath());
+            return new FileInputStream(file);
+        }
+        InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(path);
+        if (in == null) {
+            in = GraphManager.class.getClassLoader().getResourceAsStream(path);
+        }
+        if (in == null) {
+            throw new FileNotFoundException("Config not found on filesystem or classpath: " + path);
+        }
+        log.info("Configuration loaded from classpath: {}", path);
+        return in;
+    }
+
+    private void logConfigSummary() {
+        log.info("=== Configuration Summary ===");
+        config.forEach((k, v) -> {
+            String key = k.toString();
+            log.info("  {} = {}", key, isSensitive(key) ? "***" : v);
+        });
+        log.info("=============================");
     }
 
     private void connect() {
@@ -103,14 +136,14 @@ public class GraphManager {
         System.out.println("\n=== Current Configuration ===");
         config.forEach((k, v) -> {
             String key = k.toString();
-            if (key.contains("password") || key.contains("secret") ||
-                    key.contains("keytab") || key.contains("principal")) {
-                System.out.println("  " + key + " = ***");
-            } else {
-                System.out.println("  " + key + " = " + v);
-            }
+            System.out.println("  " + key + " = " + (isSensitive(key) ? "***" : v));
         });
         System.out.println("==============================\n");
+    }
+
+    private static boolean isSensitive(String key) {
+        return key.contains("password") || key.contains("secret")
+                || key.contains("keytab") || key.contains("principal");
     }
 
     public String getConfigPath() {
@@ -177,10 +210,12 @@ public class GraphManager {
                 return true;
             }
         } catch (Exception e) {
-            System.out.println("Failed to switch to graph '" + tableName + "': " + e.getMessage());
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            System.out.println("Failed to switch to graph '" + tableName + "': " + cause.getMessage());
             config.setProperty("storage.hbase.table", currentTable);
             try {
                 connect();
+                System.out.println("Reverted to graph '" + currentTable + "'");
             } catch (Exception ignored) {
             }
             return false;

@@ -101,11 +101,18 @@ public class IndexManager {
                     .status(targetStatus)
                     .timeout(timeoutSeconds, java.time.temporal.ChronoUnit.SECONDS)
                     .call();
-            return true;
         } catch (Exception e) {
             log.error("Failed to wait for index '{}' to reach status {}", indexName, targetStatus, e);
             return false;
         }
+        // awaitGraphIndexStatus().call() 超时时只记录日志、不抛异常，必须复核实际状态
+        String actual = getIndexStatus(indexName);
+        if (!targetStatus.name().equals(actual)) {
+            log.warn("Index '{}' did not reach {} within {}s (current: {})",
+                    indexName, targetStatus, timeoutSeconds, actual);
+            return false;
+        }
+        return true;
     }
 
     private boolean registerIndex(String indexName) {

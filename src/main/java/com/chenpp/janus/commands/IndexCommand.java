@@ -14,6 +14,7 @@ import org.janusgraph.core.schema.JanusGraphManagement;
 import org.janusgraph.core.schema.SchemaAction;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -153,7 +154,7 @@ public class IndexCommand implements Command {
         if (parts.length < 3) {
             System.out.println("Usage: index create <name> <key> <dataType> [elementType] [-u]");
             System.out.println("       index create <name> <key> <elementType> [-u]");
-            System.out.println("  dataType: String/Integer/Long/Double/Boolean");
+            System.out.println("  dataType: String/Integer/Long/Float/Double/Boolean/Date");
             System.out.println("  elementType: vertex(v)/edge(e), defaults to vertex");
             System.out.println("  -u: unique index");
             System.out.println("Examples:");
@@ -192,7 +193,7 @@ public class IndexCommand implements Command {
         }
 
         if (dataType == null) {
-            System.out.print("Enter data type (String/Integer/Long/Double/Boolean): ");
+            System.out.print("Enter data type (String/Integer/Long/Float/Double/Boolean/Date): ");
             String dataTypeInput = graphManager.getScanner().nextLine().trim();
             dataType = getDataType(dataTypeInput);
             if (dataType == null) {
@@ -219,10 +220,14 @@ public class IndexCommand implements Command {
                 return Integer.class;
             case "long":
                 return Long.class;
+            case "float":
+                return Float.class;
             case "double":
                 return Double.class;
             case "boolean":
                 return Boolean.class;
+            case "date":
+                return Date.class;
             default:
                 return null;
         }

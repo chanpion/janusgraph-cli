@@ -42,17 +42,11 @@ public class SchemaCommand implements Command {
             case "describe":
                 showSchema(subArgs);
                 break;
-            case "create-key":
-            case "createkey":
-                createPropertyKey(subArgs);
+            case "create":
+                createSchema(subArgs);
                 break;
-            case "create-label":
-            case "createlabel":
-                createLabel(subArgs);
-                break;
-            case "drop-key":
-            case "dropkey":
-                dropPropertyKey(subArgs);
+            case "drop":
+                dropSchema(subArgs);
                 break;
             case "stats":
                 showStats();
@@ -67,11 +61,12 @@ public class SchemaCommand implements Command {
         System.out.println("\n=== Schema Commands ===");
         System.out.println("  schema list                - List all schema elements");
         System.out.println("  schema show <name>         - Show schema element details");
-        System.out.println("  schema create-key <name> <type> - Create property key");
-        System.out.println("  schema create-label <name> <type> - Create label (vertex/edge)");
-        System.out.println("  schema drop-key <name>     - Drop property key");
+        System.out.println("  schema create key <name> <type> [SINGLE|LIST|SET] - Create property key");
+        System.out.println("  schema create vertex <name>                        - Create vertex label");
+        System.out.println("  schema create edge <name> [MULTI|SIMPLE|...]       - Create edge label");
+        System.out.println("  schema drop key|vertex|edge <name>                 - Drop schema element");
         System.out.println("  schema stats               - Show schema statistics");
-        System.out.println("  types: String, Integer, Long, Double, Boolean");
+        System.out.println("  types: String, Integer, Long, Float, Double, Boolean, Date");
         System.out.println();
     }
 
@@ -147,26 +142,51 @@ public class SchemaCommand implements Command {
         }
     }
 
-    private void createPropertyKey(String args) throws Exception {
+    private void createSchema(String args) throws Exception {
         String[] parts = args.split("\\s+");
+        String kind = parts.length > 0 ? parts[0].toLowerCase() : "";
         if (parts.length < 2) {
-            System.out.println("Usage: schema create-key <name> <type>");
+            System.out.println("Usage: schema create key <name> <type> [SINGLE|LIST|SET]");
+            System.out.println("       schema create vertex <name>");
+            System.out.println("       schema create edge <name> [MULTI|SIMPLE]");
             return;
         }
 
-        String name = parts[0];
-        String typeName = parts[1];
+        switch (kind) {
+            case "key":
+            case "property":
+                if (parts.length < 3) {
+                    System.out.println("Usage: schema create key <name> <type> [SINGLE|LIST|SET]");
+                    return;
+                }
+                createPropertyKey(parts[1], parts[2], parts.length > 3 ? parts[3] : "SINGLE");
+                break;
+            case "vertex":
+                createLabel(parts[1], "vertex", null);
+                break;
+            case "edge":
+                createLabel(parts[1], "edge", parts.length > 2 ? parts[2] : "MULTI");
+                break;
+            default:
+                System.out.println("Unknown create target: " + kind + " (use key/vertex/edge)");
+                showUsage();
+        }
+    }
 
+    private void createPropertyKey(String name, String typeName, String cardinalityInput) throws Exception {
         Class<?> dataType = getTypeClass(typeName);
         if (dataType == null) {
-            System.out.println("Invalid type: " + typeName);
+            System.out.println("Invalid type: " + typeName
+                    + " (supported: String, Integer, Long, Float, Double, Boolean, Date)");
             return;
         }
 
-        System.out.print("Cardinality (SINGLE/LIST/SET) [SINGLE]: ");
-        String cardinalityInput = graphManager.getScanner().nextLine().trim().toUpperCase();
-        if (cardinalityInput.isEmpty()) {
-            cardinalityInput = "SINGLE";
+        Cardinality cardinality;
+        try {
+            cardinality = Cardinality.valueOf(cardinalityInput.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            System.out.println("Invalid cardinality: " + cardinalityInput + " (use SINGLE/LIST/SET)");
+            return;
         }
 
         JanusGraph graph = graphManager.getGraph();
@@ -176,29 +196,17 @@ public class SchemaCommand implements Command {
                 System.out.println("PropertyKey '" + name + "' already exists");
                 return;
             }
-
-            Cardinality cardinality = Cardinality.valueOf(cardinalityInput);
             mgmt.makePropertyKey(name).dataType(dataType).cardinality(cardinality).make();
             mgmt.commit();
             System.out.println("✓ PropertyKey '" + name + "' created successfully");
-
-        } catch (Exception e) {
-            mgmt.rollback();
-            throw e;
+        } finally {
+            if (mgmt.isOpen()) {
+                mgmt.rollback();
+            }
         }
     }
 
-    private void createLabel(String args) throws Exception {
-        String[] parts = args.split("\\s+");
-        if (parts.length < 2) {
-            System.out.println("Usage: schema create-label <name> <type>");
-            System.out.println("  types: vertex, edge");
-            return;
-        }
-
-        String name = parts[0];
-        String type = parts[1].toLowerCase();
-
+    private void createLabel(String name, String type, String multiplicityInput) throws Exception {
         JanusGraph graph = graphManager.getGraph();
         JanusGraphManagement mgmt = graph.openManagement();
         try {
@@ -209,37 +217,44 @@ public class SchemaCommand implements Command {
                 }
                 mgmt.makeVertexLabel(name).make();
                 System.out.println("✓ VertexLabel '" + name + "' created successfully");
-            } else if (type.equals("edge")) {
+            } else {
                 if (mgmt.containsEdgeLabel(name)) {
                     System.out.println("EdgeLabel '" + name + "' already exists");
                     return;
                 }
-                System.out.print("Multiplicity (MULTI/SIMPLE/MANY2ONE/ONE2MANY/ONE2ONE) [MULTI]: ");
-                String multiInput = graphManager.getScanner().nextLine().trim().toUpperCase();
-                if (multiInput.isEmpty()) {
-                    multiInput = "MULTI";
+                String multi = multiplicityInput.toUpperCase();
+                if (!multi.equals("MULTI") && !multi.equals("SIMPLE")) {
+                    System.out.println("Invalid multiplicity: " + multiplicityInput + " (use MULTI|SIMPLE)");
+                    return;
                 }
-                Multiplicity multiplicity = Multiplicity.valueOf(multiInput);
-                mgmt.makeEdgeLabel(name).multiplicity(multiplicity).make();
+                mgmt.makeEdgeLabel(name).multiplicity(Multiplicity.valueOf(multi)).make();
                 System.out.println("✓ EdgeLabel '" + name + "' created successfully");
-            } else {
-                System.out.println("Invalid type: " + type + ". Use 'vertex' or 'edge'");
             }
             mgmt.commit();
-
-        } catch (Exception e) {
-            mgmt.rollback();
-            throw e;
+        } finally {
+            if (mgmt.isOpen()) {
+                mgmt.rollback();
+            }
         }
     }
 
-    private void dropPropertyKey(String name) throws Exception {
-        if (name.isEmpty()) {
-            System.out.println("Usage: schema drop-key <name>");
+    private void dropSchema(String args) throws Exception {
+        String[] parts = args.split("\\s+");
+        if (parts.length < 2) {
+            System.out.println("Usage: schema drop key <name>");
+            System.out.println("       schema drop vertex <name>");
+            System.out.println("       schema drop edge <name>");
+            return;
+        }
+        String kind = parts[0].toLowerCase();
+        String name = parts[1];
+        if (!kind.equals("key") && !kind.equals("vertex") && !kind.equals("edge")) {
+            System.out.println("Unknown drop target: " + kind + " (use key/vertex/edge)");
             return;
         }
 
-        System.out.print("Dropping property key '" + name + "' may affect existing data. Continue? (y/N): ");
+        System.out.print("Dropping schema " + kind + " '" + name
+                + "' may affect existing data. Continue? (y/N): ");
         String confirm = graphManager.getScanner().nextLine().trim().toLowerCase();
         if (!confirm.equals("y") && !confirm.equals("yes")) {
             System.out.println("Operation cancelled");
@@ -249,16 +264,31 @@ public class SchemaCommand implements Command {
         JanusGraph graph = graphManager.getGraph();
         JanusGraphManagement mgmt = graph.openManagement();
         try {
-            if (!mgmt.containsPropertyKey(name)) {
-                System.out.println("PropertyKey '" + name + "' not found");
-                return;
+            if (kind.equals("key")) {
+                if (!mgmt.containsPropertyKey(name)) {
+                    System.out.println("PropertyKey '" + name + "' not found");
+                    return;
+                }
+                mgmt.getPropertyKey(name).remove();
+            } else if (kind.equals("vertex")) {
+                if (!mgmt.containsVertexLabel(name)) {
+                    System.out.println("VertexLabel '" + name + "' not found");
+                    return;
+                }
+                mgmt.getVertexLabel(name).remove();
+            } else {
+                if (!mgmt.containsEdgeLabel(name)) {
+                    System.out.println("EdgeLabel '" + name + "' not found");
+                    return;
+                }
+                mgmt.getEdgeLabel(name).remove();
             }
-            mgmt.getPropertyKey(name).remove();
             mgmt.commit();
-            System.out.println("✓ PropertyKey '" + name + "' dropped successfully");
-        } catch (Exception e) {
-            mgmt.rollback();
-            throw e;
+            System.out.println("✓ Schema " + kind + " '" + name + "' dropped successfully");
+        } finally {
+            if (mgmt.isOpen()) {
+                mgmt.rollback();
+            }
         }
     }
 
@@ -310,8 +340,10 @@ public class SchemaCommand implements Command {
             case "string": return String.class;
             case "integer": return Integer.class;
             case "long": return Long.class;
+            case "float": return Float.class;
             case "double": return Double.class;
             case "boolean": return Boolean.class;
+            case "date": return Date.class;
             default: return null;
         }
     }

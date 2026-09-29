@@ -6,8 +6,12 @@ import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Admin;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author April.Chen
@@ -15,6 +19,14 @@ import java.util.List;
 public class GraphCommand implements Command {
 
     private final GraphManager graphManager;
+
+    // JanusGraph 各存储的列族名（长名 + short-cf-names 的短名）；表包含其中至少 3 个即视为图
+    private static final Set<String> JANUSGRAPH_CF_NAMES = new HashSet<>(Arrays.asList(
+            "edgestore", "e", "edgestore_lock_", "f",
+            "graphindex", "g", "graphindex_lock_", "h",
+            "janusgraph_ids", "i",
+            "system_properties", "s", "system_properties_lock_", "t",
+            "txlog", "l", "systemlog", "m"));
 
     public GraphCommand(GraphManager graphManager) {
         this.graphManager = graphManager;
@@ -109,18 +121,22 @@ public class GraphCommand implements Command {
             connection = ConnectionFactory.createConnection(hbaseConf);
             admin = connection.getAdmin();
 
+            String current = graphManager.getCurrentGraphName();
             List<String> graphTables = new ArrayList<>();
             for (TableName tn : admin.listTableNames()) {
                 String name = tn.getNameAsString();
-                if (name.startsWith("janusgraph")) {
+                if (name.startsWith("hbase:")) {
+                    continue; // 跳过 HBase 系统表
+                }
+                // 按列族结构识别：包含 JanusGraph 存储列族的表即视为图；当前图始终保留
+                if (isJanusGraphTable(admin, tn) || name.equals(current)) {
                     graphTables.add(name);
                 }
             }
 
             if (graphTables.isEmpty()) {
-                System.out.println("  No graph tables found");
+                System.out.println("  No JanusGraph tables found");
             } else {
-                String current = graphManager.getCurrentGraphName();
                 for (String t : graphTables) {
                     String marker = t.equals(current) ? " (*)" : "";
                     System.out.println("  " + t + marker);
@@ -138,5 +154,27 @@ public class GraphCommand implements Command {
             }
         }
         System.out.println();
+    }
+
+    private boolean isJanusGraphTable(Admin admin, TableName tableName) {
+        try {
+            List<String> cfNames = new ArrayList<>();
+            for (byte[] cf : admin.getDescriptor(tableName).getColumnFamilyNames()) {
+                cfNames.add(new String(cf, StandardCharsets.UTF_8));
+            }
+            return looksLikeJanusGraph(cfNames);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    static boolean looksLikeJanusGraph(java.util.Collection<String> cfNames) {
+        int matches = 0;
+        for (String cf : cfNames) {
+            if (JANUSGRAPH_CF_NAMES.contains(cf)) {
+                matches++;
+            }
+        }
+        return matches >= 3;
     }
 }

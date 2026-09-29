@@ -2,35 +2,38 @@
 # JanusGraph CLI 示例脚本
 # 使用 '#' 或 '//' 开头的行是注释，会被忽略
 # 执行方式: script run example.script
+# 注意:
+#   - 脚本每行是一条命令，不支持交互式换行续行（续行仅在交互 REPL 中可用）
+#   - 需要确认的命令请加 -f/--force，或保持注释，否则会误读下一行作为答复
 # ============================================================
-
-# ==================== 系统信息 ====================
-system info
-system metrics
-system time
 
 # ==================== Schema 管理 ====================
 # 列出当前所有 Schema 元素（属性键、顶点标签、边标签）
 schema list
 
-# 创建属性键（支持类型: String, Integer, Long, Double, Boolean）
-schema create-key name String
-schema create-key age Integer
-schema create-key email String
-schema create-key weight Double
-schema create-key active Boolean
+# 创建属性键（支持类型: String, Integer, Long, Float, Double, Boolean, Date；基数默认 SINGLE）
+# schema create key    <name> <type> [SINGLE|LIST|SET]
+schema create key name String
+schema create key age Integer
+schema create key email String
+schema create key weight Double
+schema create key active Boolean
+schema create key score Float
+schema create key birthday Date
 
 # 查看属性键详情
 schema show name
 schema show age
 
 # 创建顶点标签
-schema create-label person vertex
-schema create-label company vertex
+# 语法： schema create vertex <name>
+schema create vertex person
+schema create vertex company
 
-# 创建边标签
-schema create-label knows edge
-schema create-label works_at edge
+# 创建边标签（多重性 MULTI|SIMPLE，默认 MULTI）
+# schema create edge   <name> [MULTI|SIMPLE]
+schema create edge knows
+schema create edge works_at
 
 # 查看边标签详情
 schema show knows
@@ -38,17 +41,36 @@ schema show knows
 # Schema 统计
 schema stats
 
+# ==================== 数据写入（Gremlin，自动提交） ====================
+# 支持任意 Gremlin 读写；写语句执行后自动 commit()
+# 新增顶点
+query g.addV('person').property('name','marko').property('age',29)
+query g.addV('person').property('name','vadas').property('age',27)
+query g.addV('company').property('name','acme')
+
+# 新增边：先用 as('a') 标记起点，再由起点 addE 到当前顶点
+query g.V().has('name','marko').as('a').V().has('name','vadas').addE('knows').from('a').property('weight',0.5)
+query g.V().has('name','marko').as('a').V().has('name','acme').addE('works_at').from('a')
+
+# 其它写入示例
+# query g.addV('person').property('name','josh').property('age',32)
+# query g.addV('person').property('name','lucy').property('score',0.9f).property('birthday',new Date())
+# query g.V().has('name','marko').property('age',30)   # 更新属性
+# query g.V().has('name','vadas').drop()               # 删除顶点
+
 # ==================== 索引管理 ====================
 # 列出所有索引
 index list
 
-# 创建复合索引（类型: String/Integer/Long/Double/Boolean, 元素: vertex/edge）
+# 创建复合索引（类型: String/Integer/Long/Float/Double/Boolean/Date, 元素: vertex/edge）
 # 格式: index create <名称> <属性键> <类型> [vertex|edge] [-u]
 index create byName name String vertex -u
 index create byAge age Integer vertex
 index create byWeight weight Double edge
+# index create byScore score Float vertex
+# index create byBirthday birthday Date vertex
 
-# 查看索引状态
+# 查看索引状态（期望 ENABLED）
 index status byName
 index status byAge
 
@@ -63,21 +85,33 @@ index disable byAge
 index status byAge
 index enable byAge
 
+# 删除索引（示例：先建一个临时索引再删除；-f 跳过交互确认）
+index create byEmailTmp email String vertex
+index drop byEmailTmp -f
+
 # ==================== 数据查询 ====================
-# 统计顶点和边数量
-query V().count()
-query E().count()
+# 统计（全量扫描：会打印 "use indexes" 告警，属正常现象）
+query g.V().count()
+query g.E().count()
 batch count
 
-# 查询顶点
-query V().limit(10)
-query V().has('name', 'test').limit(10)
+# 带索引谓词的查询（命中复合索引，不再告警）
+query g.V().has('name','marko')
+query g.V().has('age',29).count()
 
-# 查询边
-query E().limit(5)
+# 查看查询是否走索引（观察 profile 输出）
+query g.V().has('name','marko').profile()
 
-# 采样数据
+# 遍历 / 采样
+query g.V().limit(10)
+query g.V().valueMap()
+query g.E().limit(5)
+query g.E().valueMap()
 batch sample 5
+
+# 兼容写法：可省略 g. 前缀
+query V().count()
+query V().has('name','marko').limit(10)
 
 # ==================== 数据导入导出 ====================
 # 导出数据（CSV 格式）
@@ -103,27 +137,37 @@ backup list
 # 删除备份
 # backup delete demo-backup.json
 
-# ==================== 监控 ====================
-# 启动监控（每 5 秒刷新一次）
-monitor start 5
+# ==================== 图管理 ====================
+# 查看当前图与连接状态
+graph current
 
-# 查看监控状态
-monitor status
+# 列出可用图（HBase 中以 janusgraph 开头的表）
+graph list
 
-# 停止监控
-monitor stop
+# 切换 / 新建图（切换会改变后续操作的落库表，默认注释）
+# graph use janusgraph
+# graph create janus_demo     # 会要求确认，脚本中请勿直接启用
+
+# ==================== 脚本管理 ====================
+# 列出 scripts/ 目录下可用脚本
+script list
 
 # ==================== 配置管理 ====================
 # 查看当前配置（敏感信息已脱敏）
 config show
 
 # ==================== 重新索引 ====================
-# 对已有数据重新构建索引（大数据量时耗时较长）
+# 对已有数据重新构建索引（大数据量时耗时较长；会要求确认，脚本中默认注释）
 # index reindex byName
 
 # ==================== 删除操作（危险，已注释） ====================
 # 删除索引
 # index drop byAge -f
 
-# 删除属性键
-# schema drop-key weight
+# 删除 Schema 元素（key/vertex/edge）
+# schema drop key weight
+# schema drop vertex person
+# schema drop edge knows
+
+# 清空所有数据（必须加 --force 才会执行）
+# batch delete-all --force

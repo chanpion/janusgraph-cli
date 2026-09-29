@@ -50,7 +50,6 @@ Type 'help' for available commands, 'exit' to quit
 janus> schema list
 janus> query V().count()
 janus> index list
-janus> system info
 janus> exit
 ```
 
@@ -76,9 +75,10 @@ janus> exit
 |---|---|
 | `schema list` | 列出所有 PropertyKey、VertexLabel、EdgeLabel |
 | `schema show <name>` | 查看 Schema 元素详情 |
-| `schema create-key <name> <type>` | 创建 PropertyKey（type: String/Integer/Long/Double/Boolean） |
-| `schema create-label <name> <type>` | 创建 Label（type: vertex/edge）|
-| `schema drop-key <name>` | 删除 PropertyKey |
+| `schema create key <name> <type> [cardinality]` | 创建 PropertyKey（type: String/Integer/Long/Float/Double/Boolean/Date；cardinality: SINGLE/LIST/SET，默认 SINGLE） |
+| `schema create vertex <name>` | 创建 VertexLabel |
+| `schema create edge <name> [multiplicity]` | 创建 EdgeLabel（multiplicity: MULTI/SIMPLE，默认 MULTI） |
+| `schema drop <kind> <name>` | 删除 Schema 元素（kind: key/vertex/edge） |
 | `schema stats` | 查看 Schema 统计信息 |
 
 ### Query（Gremlin 查询）
@@ -110,32 +110,12 @@ janus> exit
 | `backup list` | 列出备份文件 |
 | `backup delete <file>` | 删除备份文件 |
 
-### Monitor（监控）
-
-| 命令 | 说明 |
-|---|---|
-| `monitor start [interval]` | 启动周期性监控（默认间隔 5s） |
-| `monitor stop` | 停止监控 |
-| `monitor status` | 查看监控状态 |
-| `monitor query <gremlin>` | 监控查询执行 |
-
 ### Script（脚本执行）
 
 | 命令 | 说明 |
 |---|---|
 | `script run <file>` | 执行脚本文件 |
 | `script list` | 列出可用脚本 |
-
-### System（系统命令）
-
-| 命令 | 说明 |
-|---|---|
-| `system info` | 显示系统信息 |
-| `system metrics` | 显示 JVM 指标 |
-| `system threads` | 显示线程信息 |
-| `system gc` | 强制执行 GC |
-| `system clear` | 清屏 |
-| `system time` | 显示当前时间 |
 
 ### Config（配置管理）
 
@@ -151,7 +131,6 @@ idx  = index
 sc   = schema
 q    = query / gremlin
 g    = query / gremlin
-sys  = system
 exit = quit
 ```
 
@@ -160,33 +139,28 @@ exit = quit
 项目提供 `scripts/example.script`，演示所有命令的完整用法。通过 `script run example.script` 执行，`#` 开头的行为注释（执行时忽略）：
 
 ```bash
-# ==================== 系统信息 ====================
-system info
-system metrics
-system time
-
 # ==================== Schema 管理 ====================
 # 列出当前所有 Schema 元素（属性键、顶点标签、边标签）
 schema list
 
-# 创建属性键（支持类型: String, Integer, Long, Double, Boolean）
-schema create-key name String
-schema create-key age Integer
-schema create-key email String
-schema create-key weight Double
-schema create-key active Boolean
+# 创建属性键（支持类型: String, Integer, Long, Float, Double, Boolean, Date；基数默认 SINGLE）
+schema create key name String
+schema create key age Integer
+schema create key email String
+schema create key weight Double
+schema create key active Boolean
 
 # 查看属性键详情
 schema show name
 schema show age
 
 # 创建顶点标签
-schema create-label person vertex
-schema create-label company vertex
+schema create vertex person
+schema create vertex company
 
-# 创建边标签
-schema create-label knows edge
-schema create-label works_at edge
+# 创建边标签（多重性默认 MULTI）
+schema create edge knows
+schema create edge works_at
 
 # 查看边标签详情
 schema show knows
@@ -198,7 +172,7 @@ schema stats
 # 列出所有索引
 index list
 
-# 创建复合索引（类型: String/Integer/Long/Double/Boolean, 元素: vertex/edge）
+# 创建复合索引（类型: String/Integer/Long/Float/Double/Boolean/Date, 元素: vertex/edge）
 # 格式: index create <名称> <属性键> <类型> [vertex|edge] [-u]
 index create byName name String vertex -u
 index create byAge age Integer vertex
@@ -259,16 +233,6 @@ backup list
 # 删除备份
 # backup delete demo-backup.json
 
-# ==================== 监控 ====================
-# 启动监控（每 5 秒刷新一次）
-monitor start 5
-
-# 查看监控状态
-monitor status
-
-# 停止监控
-monitor stop
-
 # ==================== 配置管理 ====================
 # 查看当前配置（敏感信息已脱敏）
 config show
@@ -282,7 +246,7 @@ config show
 # index drop byAge -f
 
 # 删除属性键
-# schema drop-key weight
+# schema drop key weight
 ```
 
 ## 配置
@@ -399,8 +363,6 @@ com.chenpp.janus
 │   ├── QueryCommand.java       # Gremlin 查询
 │   ├── BatchCommand.java       # 批量导入导出
 │   ├── BackupCommand.java      # 备份恢复
-│   ├── MonitorCommand.java     # 监控
-│   ├── SystemCommand.java      # JVM 系统命令
 │   └── ScriptCommand.java      # 脚本执行
 └── utils/
     ├── TableFormatter.java     # ASCII 表格渲染

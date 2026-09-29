@@ -1,11 +1,16 @@
 package com.chenpp.janus.commands;
 
 import com.chenpp.janus.core.GraphManager;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.groovy.jsr223.GremlinGroovyScriptEngine;
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.janusgraph.core.JanusGraph;
 
+import javax.script.Bindings;
+import javax.script.SimpleBindings;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -15,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 public class QueryCommand implements Command {
 
     private final GraphManager graphManager;
+    private final GremlinGroovyScriptEngine engine = new GremlinGroovyScriptEngine();
 
     public QueryCommand(GraphManager graphManager) {
         this.graphManager = graphManager;
@@ -28,97 +34,122 @@ public class QueryCommand implements Command {
         }
 
         JanusGraph graph = graphManager.getGraph();
-        GraphTraversalSource g = graph.traversal();
+        String script = normalize(args);
 
+        Bindings bindings = new SimpleBindings();
+        bindings.put("g", graph.traversal());
+        bindings.put("graph", graph);
+
+        long startTime = System.nanoTime();
         try {
-            long startTime = System.nanoTime();
-            Object result = executeGremlin(g, args);
+            // materialize 会遍历惰性 Traversal，变更语句在此期间执行
+            Object result = materialize(engine.eval(script, bindings));
+            if (graph.tx().isOpen()) {
+                graph.tx().commit();
+            }
             long duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
             formatResult(result, duration);
-
         } catch (Exception e) {
+            if (graph.tx().isOpen()) {
+                graph.tx().rollback();
+            }
             System.err.println("Query execution failed: " + e.getMessage());
         }
     }
 
-    private Object executeGremlin(GraphTraversalSource g, String query) {
-        // 简化实现，支持基本查询
-        if (query.startsWith("V(") || query.startsWith("v(")) {
-            if (query.contains("has")) {
-                return g.V().has("name", extractValue(query)).limit(100).toList();
-            }
-            return g.V().limit(100).toList();
-        } else if (query.startsWith("E(") || query.startsWith("e(")) {
-            return g.E().limit(100).toList();
-        } else if (query.equals("count") || query.equals("count()")) {
-            return g.V().count().next();
-        } else if (query.startsWith("count(")) {
-            if (query.contains("v") || query.contains("V")) {
-                return g.V().count().next();
-            } else if (query.contains("e") || query.contains("E")) {
-                return g.E().count().next();
-            }
+    /**
+     * 允许省略 g. 前缀（如 V().count()），并保留历史 count 简写。
+     */
+    private String normalize(String query) {
+        String q = query.trim();
+        if (q.matches("^[VvEe]\\(.*")) {
+            return "g." + q;
         }
-        return g.V().limit(10).toList();
+        if (q.equals("count") || q.equals("count()")) {
+            return "g.V().count()";
+        }
+        return q;
     }
 
-    private String extractValue(String query) {
-        int start = query.indexOf("'");
-        if (start == -1) {
-            start = query.indexOf("\"");
+    /**
+     * 求值结果物化：遍历 Traversal / Iterator 触发惰性执行。
+     */
+    private Object materialize(Object result) {
+        if (result instanceof Traversal) {
+            return ((Traversal<?, ?>) result).toList();
         }
-        if (start == -1) {
-            return "";
+        if (result instanceof Iterator) {
+            List<Object> list = new ArrayList<>();
+            ((Iterator<?>) result).forEachRemaining(list::add);
+            return list;
         }
-        int end = query.indexOf(query.charAt(start), start + 1);
-        if (end == -1) {
-            return "";
-        }
-        return query.substring(start + 1, end);
+        return result;
     }
 
     private void formatResult(Object result, long duration) {
         System.out.println("Result (took " + duration + "ms):");
 
+        if (result == null) {
+            System.out.println("  OK");
+            return;
+        }
+
         if (result instanceof List) {
             List<?> list = (List<?>) result;
-            System.out.println("  Count: " + list.size());
-
-            if (!list.isEmpty()) {
-                int max = Math.min(list.size(), 5);
-                for (int i = 0; i < max; i++) {
-                    Object item = list.get(i);
-                    if (item instanceof Vertex) {
-                        Vertex v = (Vertex) item;
-                        System.out.println("  [" + i + "] Vertex: id=" + v.id() +
-                                ", label=" + v.label());
-                    } else if (item instanceof Edge) {
-                        Edge e = (Edge) item;
-                        System.out.println("  [" + i + "] Edge: id=" + e.id() +
-                                ", label=" + e.label());
-                    } else {
-                        System.out.println("  [" + i + "] " + item);
-                    }
-                }
-                if (list.size() > max) {
-                    System.out.println("  ... and " + (list.size() - max) + " more");
-                }
+            // 聚合查询（如 count()）返回单元素标量列表，直接打印其值，避免与结果条数混淆
+            if (list.size() == 1 && isScalar(list.get(0))) {
+                System.out.println("  " + list.get(0));
+                return;
+            }
+            System.out.println("  Results: " + list.size());
+            int max = Math.min(list.size(), 20);
+            for (int i = 0; i < max; i++) {
+                printItem(i, list.get(i));
+            }
+            if (list.size() > max) {
+                System.out.println("  ... and " + (list.size() - max) + " more");
             }
         } else {
-            System.out.println("  " + result);
+            printItem(-1, result);
+        }
+    }
+
+    private boolean isScalar(Object value) {
+        return value instanceof Number || value instanceof String
+                || value instanceof Boolean || value instanceof Character;
+    }
+
+    private void printItem(int index, Object item) {
+        String prefix = index >= 0 ? "  [" + index + "] " : "  ";
+        if (item instanceof Vertex) {
+            Vertex v = (Vertex) item;
+            StringBuilder sb = new StringBuilder(prefix + "Vertex: id=" + v.id() + ", label=" + v.label());
+            v.properties().forEachRemaining(p -> sb.append(' ').append(p.key()).append('=').append(p.value()));
+            System.out.println(sb);
+        } else if (item instanceof Edge) {
+            Edge e = (Edge) item;
+            StringBuilder sb = new StringBuilder(prefix + "Edge: id=" + e.id() + ", label=" + e.label()
+                    + " (" + e.outVertex().id() + " -> " + e.inVertex().id() + ")");
+            e.properties().forEachRemaining(p -> sb.append(' ').append(p.key()).append('=').append(p.value()));
+            System.out.println(sb);
+        } else {
+            System.out.println(prefix + item);
         }
     }
 
     private void showUsage() {
         System.out.println("\n=== Query Commands ===");
-        System.out.println("  query <gremlin>    - Execute Gremlin query");
+        System.out.println("  query <gremlin>    - Execute Gremlin (read & write)");
         System.out.println("  q <gremlin>        - Alias");
         System.out.println("  g <gremlin>        - Alias");
         System.out.println();
-        System.out.println("Examples:");
-        System.out.println("  q V().count()");
-        System.out.println("  q V().limit(10)");
-        System.out.println("  q V().has('name','test')");
+        System.out.println("Read examples:");
+        System.out.println("  q g.V().count()");
+        System.out.println("  q V().has('name','marko').limit(10)");
+        System.out.println();
+        System.out.println("Write examples (auto-committed):");
+        System.out.println("  g.addV('person').property('name','marko').property('age',29)");
+        System.out.println("  g.V().has('name','marko').as('a').V().has('name','vadas').addE('knows').from('a')");
         System.out.println();
     }
 }

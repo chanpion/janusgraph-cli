@@ -5,11 +5,9 @@ import com.chenpp.janus.commands.BatchCommand;
 import com.chenpp.janus.commands.Command;
 import com.chenpp.janus.commands.GraphCommand;
 import com.chenpp.janus.commands.IndexCommand;
-import com.chenpp.janus.commands.MonitorCommand;
 import com.chenpp.janus.commands.QueryCommand;
 import com.chenpp.janus.commands.SchemaCommand;
 import com.chenpp.janus.commands.ScriptCommand;
-import com.chenpp.janus.commands.SystemCommand;
 import com.chenpp.janus.core.GraphManager;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.jline.reader.LineReader;
@@ -30,7 +28,6 @@ import java.util.Map;
 public class JanusGraphCLI {
 
     private static final Logger log = LoggerFactory.getLogger(JanusGraphCLI.class);
-    private static final String PROMPT = "janus> ";
     private static final String HISTORY_FILE = System.getProperty("user.home") + "/.janusgraph_history";
 
     private final GraphManager graphManager;
@@ -67,11 +64,6 @@ public class JanusGraphCLI {
         cmds.put("gremlin", queryCmd);
         cmds.put("g", queryCmd);
 
-        // 系统命令
-        SystemCommand systemCmd = new SystemCommand(graphManager);
-        cmds.put("system", systemCmd);
-        cmds.put("sys", systemCmd);
-
         // 批量命令
         BatchCommand batchCmd = new BatchCommand(graphManager);
         cmds.put("batch", batchCmd);
@@ -79,10 +71,6 @@ public class JanusGraphCLI {
         // 备份命令
         BackupCommand backupCmd = new BackupCommand(graphManager);
         cmds.put("backup", backupCmd);
-
-        // 监控命令
-        MonitorCommand monitorCmd = new MonitorCommand(graphManager);
-        cmds.put("monitor", monitorCmd);
 
         // 脚本命令
         ScriptCommand scriptCmd = new ScriptCommand(graphManager, this);
@@ -99,6 +87,14 @@ public class JanusGraphCLI {
         cmds.put("config", new ConfigCommand(graphManager));
 
         return cmds;
+    }
+
+    private String prompt() {
+        String graphName = graphManager.getCurrentGraphName();
+        if (graphName == null || graphName.isEmpty()) {
+            graphName = "janus";
+        }
+        return graphName + "> ";
     }
 
     public void start() throws Exception {
@@ -131,7 +127,7 @@ public class JanusGraphCLI {
 
         while (running) {
             try {
-                String line = reader.readLine(PROMPT);
+                String line = reader.readLine(prompt());
                 if (line == null) {
                     break;
                 }
@@ -144,7 +140,7 @@ public class JanusGraphCLI {
                 // 处理多行命令（以 \ 结尾）
                 while (line.endsWith("\\")) {
                     line = line.substring(0, line.length() - 1);
-                    String next = reader.readLine(PROMPT + "  ");
+                    String next = reader.readLine(prompt() + "  ");
                     if (next == null) {
                         break;
                     }
@@ -241,9 +237,10 @@ public class JanusGraphCLI {
             System.out.println("SCHEMA OPERATIONS:");
             System.out.println("  schema list                  - List all property keys and labels");
             System.out.println("  schema show <name>           - Show schema details");
-            System.out.println("  schema create-key <name> <type> - Create property key");
-            System.out.println("  schema create-label <name> <type> - Create label");
-            System.out.println("  schema drop-key <name>       - Drop property key");
+            System.out.println("  schema create key <name> <type>    - Create property key");
+            System.out.println("  schema create vertex <name>        - Create vertex label");
+            System.out.println("  schema create edge <name>          - Create edge label");
+            System.out.println("  schema drop key|vertex|edge <name> - Drop schema element");
             System.out.println("  schema stats                 - Show schema statistics");
             System.out.println();
             System.out.println("QUERY OPERATIONS:");
@@ -264,12 +261,6 @@ public class JanusGraphCLI {
             System.out.println("  backup list                  - List backups");
             System.out.println("  backup delete <file>         - Delete backup");
             System.out.println();
-            System.out.println("MONITOR OPERATIONS:");
-            System.out.println("  monitor start [interval]     - Start monitoring");
-            System.out.println("  monitor stop                 - Stop monitoring");
-            System.out.println("  monitor status               - Show current status");
-            System.out.println("  monitor query <gremlin>      - Monitor query execution");
-            System.out.println();
             System.out.println("SCRIPT OPERATIONS:");
             System.out.println("  script run <file>            - Execute script file");
             System.out.println("  script list                  - List available scripts");
@@ -279,21 +270,13 @@ public class JanusGraphCLI {
             System.out.println("  graph current                - Show current graph name");
             System.out.println("  graph list                   - List available graphs");
             System.out.println();
-            System.out.println("SYSTEM OPERATIONS:");
-            System.out.println("  system info                  - Show system information");
-            System.out.println("  system metrics               - Show JVM metrics");
-            System.out.println("  system threads               - Show thread information");
-            System.out.println("  system gc                    - Force garbage collection");
-            System.out.println("  system clear                 - Clear console");
-            System.out.println("  system time                  - Show current time");
-            System.out.println();
             System.out.println("CONFIG OPERATIONS:");
             System.out.println("  config show                  - Show current configuration");
             System.out.println("  config reload                - Reload configuration");
             System.out.println();
             System.out.println("Shortcuts:");
             System.out.println("  idx = index,  sc = schema,  q = query");
-            System.out.println("  g = gremlin,  sys = system");
+            System.out.println("  g = gremlin");
             System.out.println();
         }
     }

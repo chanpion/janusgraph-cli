@@ -32,12 +32,10 @@ com.example.janus
 ├── commands/
 │   ├── Command.java            # Single-method interface: void execute(String args)
 │   ├── IndexCommand.java       # index create/list/drop/enable/disable/reindex/describe/repair
-│   ├── SchemaCommand.java      # schema list/show/create-key/create-label/drop-key/stats
+│   ├── SchemaCommand.java      # schema list/show/create(key|vertex|edge)/drop(key|vertex|edge)/stats
 │   ├── QueryCommand.java       # Gremlin query execution (simplified, not a full Gremlin console)
-│   ├── SystemCommand.java      # JVM metrics, system info, GC, threads, time
 │   ├── BatchCommand.java       # import/export CSV/JSON, count, sample, delete-all
 │   ├── BackupCommand.java      # create/restore/list/delete JSON backups
-│   ├── MonitorCommand.java     # periodic memory/time monitoring via ScheduledExecutorService
 │   └── ScriptCommand.java      # batch execute commands from .script files
 ├── core/
 │   ├── GraphManager.java       # JanusGraph connection lifecycle, config loading, auto-reconnect
@@ -49,7 +47,7 @@ com.example.janus
 
 ### Key design decisions
 
-- **Command aliases**: Registered with both full and short names (index/idx, schema/sc, query/q, gremlin/g, system/sys). Fallback: unknown input is tried as a Gremlin query.
+- **Command aliases**: Registered with both full and short names (index/idx, schema/sc, query/q, gremlin/g). Fallback: unknown input is tried as a Gremlin query.
 - **REPL**: JLine with history file at `~/.janusgraph_history`, multi-line continuation (`\`), Ctrl+D support.
 - **GraphManager**: Loads config from `.properties` file, opens `JanusGraph` via `JanusGraphFactory.build().set(config).open()`. `getGraph()` auto-reconnects if closed. Config print masks sensitive keys (password, secret, keytab, principal).
 - **IndexManager**: All index mutations go through `JanusGraphManagement`. The `createCompositeIndex` method waits for REGISTERED status, then runs REINDEX. `dropIndexSafely` goes DISABLED→REMOVE_INDEX with a 1s sleep between steps.
@@ -61,7 +59,7 @@ com.example.janus
 - JanusGraph 1.0.1 with HBase backend
 - JLine 3.26.3 for REPL
 - Fastjson2 2.0.53 for JSON
-- SLF4J + slf4j-simple for logging
+- SLF4J + slf4j-log4j12 (log4j 1.x), configured via `log4j.properties`
 - commons-configuration 1.10
 
 ### Important constraints
