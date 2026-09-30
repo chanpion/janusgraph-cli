@@ -472,3 +472,34 @@ exit = quit
 | 给边的 `uid` 建唯一索引报错 | JanusGraph **唯一索引只能建在顶点上**（`Unique indexes can only be created on vertices`）；边的同名字段请用普通索引（如 `idx_uid`） |
 | 配置从哪来 | 默认从 classpath 发现 `janusgraph-hbase.properties`，也可在启动时显式传路径 |
 
+---
+
+## 附录 C. 使用 Cassandra (CQL) 后端
+
+CLI 通过 `storage.backend` 自动识别后端，除「图管理」（见下）外，Schema / 索引 / 查询 / 批量 / 备份命令用法完全一致。
+
+用模板配置启动（模板在 `src/main/resources/janusgraph-cassandra.properties`）：
+
+```bash
+./start-cli.sh janusgraph-cassandra.properties
+```
+
+关键配置项：
+
+```properties
+storage.backend=cql
+storage.hostname=127.0.0.1        # Cassandra 接触点（多个用逗号分隔）
+storage.port=9042
+storage.cql.keyspace=janusgraph   # 相当于 HBase 的表名
+storage.cql.local-datacenter=datacenter1
+storage.username=cassandra        # 用户名密码认证
+storage.password=cassandra        # config show 中自动显示为 ***
+```
+
+说明：
+
+- **当前图名**取自 `storage.cql.keyspace`，提示符与 `graph current` 显示该 keyspace。
+- `graph list` / `graph use` / `graph create` **仅 HBase 支持**，在 Cassandra 下会提示不支持并返回；`graph current` / `graph instances` / `graph close-instance` 仍可用。
+- Cassandra 后端不支持 Kerberos，启动横幅会显示 `Kerberos: disabled`。
+
+

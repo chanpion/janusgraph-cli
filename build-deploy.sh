@@ -46,6 +46,7 @@ cp "target/$PROJECT-$VERSION.jar" "$DEPLOY_DIR/"
 cp start-cli.sh "$DEPLOY_DIR/"
 chmod +x "$DEPLOY_DIR/start-cli.sh"
 cp src/main/resources/janusgraph-hbase.properties "$DEPLOY_DIR/"
+cp src/main/resources/janusgraph-cassandra.properties "$DEPLOY_DIR/"
 
 for f in jaas.conf krb5.conf hbase.headless.keytab; do
   if [ -f "src/main/resources/$f" ]; then

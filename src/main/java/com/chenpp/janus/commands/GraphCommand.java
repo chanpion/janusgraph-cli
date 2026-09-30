@@ -76,7 +76,7 @@ public class GraphCommand implements Command {
         System.out.println("  graph create <name>   - Create and switch to a new graph");
         System.out.println("  graph use <name>      - Switch to an existing graph");
         System.out.println("  graph current         - Show current graph name");
-        System.out.println("  graph list            - List available graphs (HBase tables)");
+        System.out.println("  graph list            - List available graphs (HBase backend only)");
         System.out.println("  graph instances       - List open JanusGraph instances");
         System.out.println("  graph close-instance <id> - Force-close a stale instance");
         System.out.println();
@@ -114,6 +114,12 @@ public class GraphCommand implements Command {
 
     private void listGraphs() {
         System.out.println("\n=== Available Graphs ===");
+        if (!graphManager.isHBaseBackend()) {
+            System.out.println("  Listing graphs is only supported for the HBase backend (current: "
+                    + graphManager.getBackend() + ")");
+            System.out.println();
+            return;
+        }
 
         Connection connection = null;
         Admin admin = null;

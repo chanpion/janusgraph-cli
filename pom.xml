@@ -51,6 +51,23 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- JanusGraph Cassandra (CQL) 存储后端 -->
+        <dependency>
+            <groupId>org.janusgraph</groupId>
+            <artifactId>janusgraph-cql</artifactId>
+            <version>${janusgraph.version}</version>
+            <exclusions>
+                <!-- 0.6.4 中误声明为 compile；CQL 字节码不引用 org.apache.cassandra，排除以控制 fat jar 体积 -->
+                <exclusion>
+                    <groupId>org.apache.cassandra</groupId>
+                    <artifactId>cassandra-all</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>ch.qos.logback</groupId>
+                    <artifactId>logback-classic</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <dependency>
             <groupId>org.apache.tinkerpop</groupId>
             <artifactId>tinkergraph-gremlin</artifactId>

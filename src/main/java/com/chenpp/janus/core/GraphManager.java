@@ -181,11 +181,34 @@ public class GraphManager {
     }
 
     public String getCurrentGraphName() {
-        return config.getProperty("storage.hbase.table");
+        return config.getProperty(graphNameKey());
+    }
+
+    public String getBackend() {
+        String backend = config.getProperty("storage.backend", "hbase");
+        return backend.trim().toLowerCase();
+    }
+
+    public boolean isHBaseBackend() {
+        return "hbase".equals(getBackend());
+    }
+
+    public boolean isCqlBackend() {
+        return "cql".equals(getBackend());
+    }
+
+    private String graphNameKey() {
+        return isCqlBackend() ? "storage.cql.keyspace" : "storage.hbase.table";
     }
 
     public boolean switchToGraph(String tableName) {
-        String currentTable = config.getProperty("storage.hbase.table");
+        if (!isHBaseBackend()) {
+            System.out.println("Switching graphs is not supported for backend '"
+                    + getBackend() + "' (HBase only)");
+            return false;
+        }
+
+        String currentTable = config.getProperty(graphNameKey());
         if (tableName == null || tableName.trim().isEmpty()) {
             System.out.println("Graph name cannot be empty");
             return false;
@@ -200,7 +223,7 @@ public class GraphManager {
 
         close();
 
-        config.setProperty("storage.hbase.table", tableName);
+        config.setProperty(graphNameKey(), tableName);
         try {
             connect();
             long count = testConnection();
@@ -214,7 +237,7 @@ public class GraphManager {
         } catch (Exception e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             System.out.println("Failed to switch to graph '" + tableName + "': " + cause.getMessage());
-            config.setProperty("storage.hbase.table", currentTable);
+            config.setProperty(graphNameKey(), currentTable);
             try {
                 connect();
                 System.out.println("Reverted to graph '" + currentTable + "'");
@@ -225,6 +248,10 @@ public class GraphManager {
     }
 
     private void initSecurity() {
+        // Kerberos/Hadoop UGI 为 HBase 专属，其他后端（如 cql）不初始化
+        if (!isHBaseBackend()) {
+            return;
+        }
         setupSystemProperties(config);
         if (loginUser == null) {
             kerberosLogin(config);
