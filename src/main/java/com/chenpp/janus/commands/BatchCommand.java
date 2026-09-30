@@ -501,6 +501,7 @@ public class BatchCommand implements Command {
         JanusGraph graph = graphManager.getGraph();
         long vCount = graph.traversal().V().count().next();
         long eCount = graph.traversal().E().count().next();
+        graph.tx().rollback();
         System.out.println("Vertices: " + vCount);
         System.out.println("Edges: " + eCount);
     }
@@ -524,5 +525,6 @@ public class BatchCommand implements Command {
         System.out.println("Sample edges:");
         graph.traversal().E().limit(n).forEachRemaining(e ->
                 System.out.println("  [" + e.label() + "] " + e.outVertex().id() + " -> " + e.inVertex().id()));
+        graph.tx().rollback();
     }
 }

@@ -98,7 +98,6 @@
             </exclusions>
         </dependency>
 
-        <!-- 显式声明 commons-text 版本，避免 hadoop-common 引入的旧版本覆盖 -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-text</artifactId>
@@ -118,7 +117,6 @@
             <version>${jline.version}</version>
         </dependency>
 
-        <!-- 日志 -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
@@ -130,14 +128,12 @@
             <version>${slf4j.version}</version>
         </dependency>
 
-        <!-- JSON 处理（Fastjson，JDK 8 兼容） -->
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
             <version>${fastjson.version}</version>
         </dependency>
 
-        <!-- 配置管理 -->
         <dependency>
             <groupId>commons-configuration</groupId>
             <artifactId>commons-configuration</artifactId>

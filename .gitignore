@@ -36,6 +36,8 @@ logs/
 # Backup data
 backups/
 *.json
+# 文档样例数据需保留
+!docs/examples/*.json
 
 # Kerberos keytab（敏感凭据）
 *.keytab

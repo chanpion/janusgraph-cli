@@ -175,6 +175,8 @@ public class GraphManager {
         } catch (Exception e) {
             log.warn("Test query failed, but connection may still be valid", e);
             return -1L;
+        } finally {
+            g.tx().rollback();
         }
     }
 

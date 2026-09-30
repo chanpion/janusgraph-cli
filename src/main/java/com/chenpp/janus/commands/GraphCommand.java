@@ -1,6 +1,8 @@
 package com.chenpp.janus.commands;
 
 import com.chenpp.janus.core.GraphManager;
+import org.janusgraph.core.JanusGraph;
+import org.janusgraph.core.schema.JanusGraphManagement;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
@@ -57,6 +59,12 @@ public class GraphCommand implements Command {
             case "ls":
                 listGraphs();
                 break;
+            case "instances":
+                listInstances();
+                break;
+            case "close-instance":
+                closeInstance(subArgs);
+                break;
             default:
                 System.out.println("Unknown subcommand: " + subCmd);
                 showUsage();
@@ -69,6 +77,8 @@ public class GraphCommand implements Command {
         System.out.println("  graph use <name>      - Switch to an existing graph");
         System.out.println("  graph current         - Show current graph name");
         System.out.println("  graph list            - List available graphs (HBase tables)");
+        System.out.println("  graph instances       - List open JanusGraph instances");
+        System.out.println("  graph close-instance <id> - Force-close a stale instance");
         System.out.println();
     }
 
@@ -105,20 +115,11 @@ public class GraphCommand implements Command {
     private void listGraphs() {
         System.out.println("\n=== Available Graphs ===");
 
-        org.apache.hadoop.conf.Configuration hbaseConf = null;
         Connection connection = null;
         Admin admin = null;
 
         try {
-            hbaseConf = org.apache.hadoop.hbase.HBaseConfiguration.create();
-            hbaseConf.set("hbase.zookeeper.quorum",
-                    graphManager.getConfig().getProperty("storage.hostname"));
-            hbaseConf.set("hbase.zookeeper.property.clientPort",
-                    graphManager.getConfig().getProperty("storage.hbase.ext.hbase.zookeeper.property.clientPort", "2181"));
-            hbaseConf.set("zookeeper.znode.parent",
-                    graphManager.getConfig().getProperty("storage.hbase.ext.zookeeper.znode.parent", "/hbase"));
-
-            connection = ConnectionFactory.createConnection(hbaseConf);
+            connection = ConnectionFactory.createConnection(buildHBaseConf());
             admin = connection.getAdmin();
 
             String current = graphManager.getCurrentGraphName();
@@ -154,6 +155,73 @@ public class GraphCommand implements Command {
             }
         }
         System.out.println();
+    }
+
+    /**
+     * 按 JanusGraph HBaseStoreManager 的规则构造 HBase 配置，保证与 JanusGraph 用同一套连接参数：
+     * 先加载 hbase-site.xml，再透传全部 storage.hbase.ext.* 键，最后映射 storage.hostname/storage.port。
+     * 未在配置中出现的键保持 hbase-site.xml 的值，不写死默认值（写死 ZK 端口/znode 会覆盖正确配置）。
+     */
+    private org.apache.hadoop.conf.Configuration buildHBaseConf() {
+        org.apache.hadoop.conf.Configuration hbaseConf =
+                org.apache.hadoop.hbase.HBaseConfiguration.create();
+        java.util.Properties config = graphManager.getConfig();
+
+        String prefix = "storage.hbase.ext.";
+        for (String key : config.stringPropertyNames()) {
+            if (key.startsWith(prefix)) {
+                hbaseConf.set(key.substring(prefix.length()), config.getProperty(key));
+            }
+        }
+
+        String hosts = config.getProperty("storage.hostname");
+        if (hosts != null && !hosts.isEmpty()) {
+            hbaseConf.set("hbase.zookeeper.quorum", hosts);
+        }
+        String port = config.getProperty("storage.port");
+        if (port != null && !port.isEmpty()) {
+            hbaseConf.set("hbase.zookeeper.property.clientPort", port);
+        }
+
+        return hbaseConf;
+    }
+
+    private void listInstances() {
+        System.out.println("\n=== Open JanusGraph Instances ===");
+        JanusGraph graph = graphManager.getGraph();
+        JanusGraphManagement mgmt = graph.openManagement();
+        try {
+            Set<String> instances = mgmt.getOpenInstances();
+            if (instances.isEmpty()) {
+                System.out.println("  (none)");
+            } else {
+                for (String id : instances) {
+                    System.out.println("  " + id);
+                }
+                System.out.println();
+                System.out.println("  '(current)' 为当前实例，勿关；其余若来自已退出的进程（旧主机/旧会话），"
+                        + "用 'graph close-instance <id>'(id 不含 '(current)') 关闭后，索引即可推进到 REGISTERED。");
+            }
+        } finally {
+            mgmt.commit();
+        }
+    }
+
+    private void closeInstance(String id) {
+        if (id.isEmpty()) {
+            System.out.println("Usage: graph close-instance <instance-id>");
+            return;
+        }
+        JanusGraph graph = graphManager.getGraph();
+        JanusGraphManagement mgmt = graph.openManagement();
+        try {
+            mgmt.forceCloseInstance(id);
+            mgmt.commit();
+            System.out.println("✓ Instance '" + id + "' force-closed");
+        } catch (Exception e) {
+            mgmt.rollback();
+            System.out.println("✗ Failed to close instance '" + id + "': " + e.getMessage());
+        }
     }
 
     private boolean isJanusGraphTable(Admin admin, TableName tableName) {

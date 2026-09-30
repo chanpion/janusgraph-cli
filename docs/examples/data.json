@@ -1,0 +1,13 @@
+{
+  "vertices": [
+    { "id": "v1", "label": "person", "properties": { "uid": "person-1", "name": "marko", "age": 29 } },
+    { "id": "v2", "label": "person", "properties": { "uid": "person-2", "name": "vadas", "age": 27 } },
+    { "id": "v3", "label": "person", "properties": { "uid": "person-3", "name": "josh", "age": 32 } },
+    { "id": "v4", "label": "company", "properties": { "uid": "company-1", "name": "acme" } }
+  ],
+  "edges": [
+    { "from": "v1", "to": "v2", "label": "knows", "properties": { "uid": "knows-1", "weight": 0.5 } },
+    { "from": "v1", "to": "v3", "label": "knows", "properties": { "uid": "knows-2", "weight": 1.0 } },
+    { "from": "v1", "to": "v4", "label": "works_at", "properties": { "uid": "worksat-1" } }
+  ]
+}

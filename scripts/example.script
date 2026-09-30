@@ -13,6 +13,7 @@ schema list
 
 # 创建属性键（支持类型: String, Integer, Long, Float, Double, Boolean, Date；基数默认 SINGLE）
 # schema create key    <name> <type> [SINGLE|LIST|SET]
+schema create key uid String
 schema create key name String
 schema create key age Integer
 schema create key email String
@@ -44,16 +45,16 @@ schema stats
 # ==================== 数据写入（Gremlin，自动提交） ====================
 # 支持任意 Gremlin 读写；写语句执行后自动 commit()
 # 新增顶点
-query g.addV('person').property('name','marko').property('age',29)
-query g.addV('person').property('name','vadas').property('age',27)
-query g.addV('company').property('name','acme')
+query g.addV('person').property('uid','person-1').property('name','marko').property('age',29)
+query g.addV('person').property('uid','person-2').property('name','vadas').property('age',27)
+query g.addV('company').property('uid','company-1').property('name','acme')
 
 # 新增边：先用 as('a') 标记起点，再由起点 addE 到当前顶点
-query g.V().has('name','marko').as('a').V().has('name','vadas').addE('knows').from('a').property('weight',0.5)
-query g.V().has('name','marko').as('a').V().has('name','acme').addE('works_at').from('a')
+query g.V().has('name','marko').as('a').V().has('name','vadas').addE('knows').from('a').property('uid','knows-1').property('weight',0.5)
+query g.V().has('name','marko').as('a').V().has('name','acme').addE('works_at').from('a').property('uid','worksat-1')
 
 # 其它写入示例
-# query g.addV('person').property('name','josh').property('age',32)
+# query g.addV('person').property('uid','person-3').property('name','josh').property('age',32)
 # query g.addV('person').property('name','lucy').property('score',0.9f).property('birthday',new Date())
 # query g.V().has('name','marko').property('age',30)   # 更新属性
 # query g.V().has('name','vadas').drop()               # 删除顶点
@@ -64,30 +65,33 @@ index list
 
 # 创建复合索引（类型: String/Integer/Long/Float/Double/Boolean/Date, 元素: vertex/edge）
 # 格式: index create <名称> <属性键> <类型> [vertex|edge] [-u]
-index create byName name String vertex -u
-index create byAge age Integer vertex
-index create byWeight weight Double edge
-# index create byScore score Float vertex
-# index create byBirthday birthday Date vertex
+# 顶点 uid 唯一索引；边 uid 只能普通索引（JanusGraph 唯一索引仅支持顶点）
+index create uni_uid uid String vertex -u
+index create idx_uid uid String edge
+index create uni_name name String vertex -u
+index create idx_age age Integer vertex
+index create idx_weight weight Double edge
+# index create idx_score score Float vertex
+# index create idx_birthday birthday Date vertex
 
 # 查看索引状态（期望 ENABLED）
-index status byName
-index status byAge
+index status uni_uid
+index status idx_age
 
 # 查看索引详情
-index describe byName
+index describe uni_uid
 
 # JSON 格式列出索引
 index list --json
 
 # 禁用 / 启用索引
-index disable byAge
-index status byAge
-index enable byAge
+index disable idx_age
+index status idx_age
+index enable idx_age
 
 # 删除索引（示例：先建一个临时索引再删除；-f 跳过交互确认）
-index create byEmailTmp email String vertex
-index drop byEmailTmp -f
+index create idx_email_tmp email String vertex
+index drop idx_email_tmp -f
 
 # ==================== 数据查询 ====================
 # 统计（全量扫描：会打印 "use indexes" 告警，属正常现象）
@@ -158,11 +162,11 @@ config show
 
 # ==================== 重新索引 ====================
 # 对已有数据重新构建索引（大数据量时耗时较长；会要求确认，脚本中默认注释）
-# index reindex byName
+# index reindex uni_name
 
 # ==================== 删除操作（危险，已注释） ====================
 # 删除索引
-# index drop byAge -f
+# index drop idx_age -f
 
 # 删除 Schema 元素（key/vertex/edge）
 # schema drop key weight

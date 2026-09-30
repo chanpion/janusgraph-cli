@@ -332,6 +332,7 @@ public class SchemaCommand implements Command {
 
         } finally {
             mgmt.commit();
+            graph.tx().rollback();
         }
     }
 

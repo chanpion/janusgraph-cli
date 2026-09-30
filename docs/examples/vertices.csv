@@ -1,0 +1,4 @@
+uid,name,age,active
+csv-1,marko,29,true
+csv-2,vadas,27,false
+csv-3,josh,32,true

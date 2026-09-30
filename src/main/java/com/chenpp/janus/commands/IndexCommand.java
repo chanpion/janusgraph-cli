@@ -15,7 +15,6 @@ import org.janusgraph.core.schema.SchemaAction;
 
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -95,58 +94,26 @@ public class IndexCommand implements Command {
 
     private void listIndexes(String args) {
         boolean jsonOutput = args.contains("--json");
-        JanusGraph graph = graphManager.getGraph();
-        JanusGraphManagement mgmt = graph.openManagement();
-        try {
-            List<JanusGraphIndex> indexes = new ArrayList<>();
-            for (JanusGraphIndex idx : mgmt.getGraphIndexes(Vertex.class)) {
-                indexes.add(idx);
-            }
-            for (JanusGraphIndex idx : mgmt.getGraphIndexes(Edge.class)) {
-                if (!containsIndex(indexes, idx)) {
-                    indexes.add(idx);
-                }
-            }
-            List<Map<String, Object>> indexList = new ArrayList<>();
+        List<Map<String, Object>> indexList = new IndexManager(graphManager).listIndexes();
 
-            for (JanusGraphIndex idx : indexes) {
-                Map<String, Object> info = new LinkedHashMap<>();
-                info.put("name", idx.name());
-                info.put("status", idx.getFieldKeys().length > 0 ? String.valueOf(idx.getIndexStatus(idx.getFieldKeys()[0])) : "UNKNOWN");
-                info.put("type", idx.isMixedIndex() ? "Mixed" : "Composite");
-                info.put("element", idx.getIndexedElement().getSimpleName());
-
-                List<String> keyNames = new ArrayList<>();
-                for (PropertyKey key : idx.getFieldKeys()) {
-                    keyNames.add(key.name());
-                }
-                info.put("keys", keyNames);
-                if (idx.isUnique()) {
-                    info.put("unique", true);
-                }
-                indexList.add(info);
-            }
-
-            if (jsonOutput) {
-                System.out.println(JsonFormatter.toJson(indexList));
-            } else {
-                List<String[]> rows = new ArrayList<>();
-                rows.add(new String[]{"Name", "Status", "Type", "Element", "Keys", "Unique"});
-                for (Map<String, Object> info : indexList) {
-                    rows.add(new String[]{
-                            (String) info.get("name"),
-                            (String) info.get("status"),
-                            (String) info.get("type"),
-                            (String) info.get("element"),
-                            info.get("keys").toString(),
-                            info.containsKey("unique") ? "Yes" : "No"
-                    });
-                }
-                TableFormatter.printTable(rows);
-            }
-        } finally {
-            mgmt.commit();
+        if (jsonOutput) {
+            System.out.println(JsonFormatter.toJson(indexList));
+            return;
         }
+
+        List<String[]> rows = new ArrayList<>();
+        rows.add(new String[]{"Name", "Status", "Type", "Element", "Keys", "Unique"});
+        for (Map<String, Object> info : indexList) {
+            rows.add(new String[]{
+                    (String) info.get("name"),
+                    (String) info.get("status"),
+                    (String) info.get("type"),
+                    (String) info.get("element"),
+                    info.get("keys").toString(),
+                    info.containsKey("unique") ? "Yes" : "No"
+            });
+        }
+        TableFormatter.printTable(rows);
     }
 
     private void createIndex(String args) throws Exception {
@@ -208,7 +175,18 @@ public class IndexCommand implements Command {
         if (success) {
             System.out.println("✓ Index '" + name + "' created successfully");
         } else {
-            System.out.println("✗ Failed to create index '" + name + "'");
+            String status = indexManager.getIndexStatus(name);
+            System.out.println("✗ Failed to create index '" + name + "' (current status: " + status + ")");
+            if ("INSTALLED".equals(status)) {
+                System.out.println("  卡在 INSTALLED：注册需要集群所有实例确认。先 'graph instances' 查看，"
+                        + "用 'graph close-instance <id>' 关闭陈旧实例，再 'index reindex " + name + "' 重试。");
+            } else if ("DISABLED".equals(status)) {
+                System.out.println("  Next: 'index enable " + name + "'");
+            } else if ("REGISTERED".equals(status)) {
+                System.out.println("  Next: 'index reindex " + name + "'");
+            } else {
+                System.out.println("  Next: 'index reindex " + name + "'; to remove: 'index drop " + name + " -f'");
+            }
         }
     }
 
@@ -235,12 +213,11 @@ public class IndexCommand implements Command {
 
     private Class<? extends Element> parseElementType(String typeName) {
         switch (typeName.toLowerCase()) {
-            case "vertex":
-            case "v":
-                return Vertex.class;
             case "edge":
             case "e":
                 return Edge.class;
+            case "vertex":
+            case "v":
             default:
                 return Vertex.class;
         }
@@ -271,7 +248,11 @@ public class IndexCommand implements Command {
         if (success) {
             System.out.println("✓ Index '" + name + "' dropped successfully");
         } else {
-            System.out.println("✗ Failed to drop index '" + name + "'");
+            String status = indexManager.getIndexStatus(name);
+            System.out.println("✗ Failed to drop index '" + name + "' (current status: " + status + ")");
+            if ("DISABLED".equals(status)) {
+                System.out.println("  索引数据已删除，但索引定义仍存在，删除定义失败；可重试 'index drop " + name + " -f'。");
+            }
         }
     }
 
@@ -397,18 +378,18 @@ public class IndexCommand implements Command {
 
             if (status.contains("INSTALLED")) {
                 System.out.println("Index is INSTALLED. Attempting to enable...");
-                mgmt.updateIndex(idx, SchemaAction.ENABLE_INDEX).get();
+                mgmt.updateIndex(idx, SchemaAction.ENABLE_INDEX);
                 mgmt.commit();
                 System.out.println("Index enabled, waiting for registration...");
                 Thread.sleep(5000);
             } else if (status.contains("REGISTERED")) {
                 System.out.println("Index is REGISTERED. Attempting reindex...");
-                mgmt.updateIndex(idx, SchemaAction.REINDEX).get();
+                mgmt.updateIndex(idx, SchemaAction.REINDEX);
                 mgmt.commit();
                 System.out.println("Reindex started...");
             } else if (status.contains("DISABLED")) {
                 System.out.println("Index is DISABLED. Attempting to enable...");
-                mgmt.updateIndex(idx, SchemaAction.ENABLE_INDEX).get();
+                mgmt.updateIndex(idx, SchemaAction.ENABLE_INDEX);
                 mgmt.commit();
                 System.out.println("Index enabled");
             } else {
@@ -425,14 +406,5 @@ public class IndexCommand implements Command {
         } finally {
             mgmt.commit();
         }
-    }
-
-    private boolean containsIndex(List<JanusGraphIndex> indexes, JanusGraphIndex idx) {
-        for (JanusGraphIndex existing : indexes) {
-            if (existing.name().equals(idx.name())) {
-                return true;
-            }
-        }
-        return false;
     }
 }

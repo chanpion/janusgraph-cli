@@ -54,4 +54,4 @@ echo "Config: $CONFIG_PATH"
 echo ""
 
 exec $JAVA_CMD $JAVA_OPTS -cp "$CLASSPATH" \
-    com.example.janus.JanusGraphCLI "$CONFIG_PATH"
+    com.chenpp.janus.JanusGraphCLI "$CONFIG_PATH"

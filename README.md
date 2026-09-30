@@ -2,11 +2,13 @@
 
 交互式命令行工具，用于管理 JanusGraph 图数据库（HBase 后端），支持索引管理、Schema 管理、Gremlin 查询、数据导入导出、备份恢复等功能。
 
+> 完整端到端使用示例见 **[docs/USAGE.md](docs/USAGE.md)**。
+
 ## 快速开始
 
 ### 前置条件
 
-- JDK 17+
+- JDK 8+
 - Maven 3.6+（仅构建需要）
 - JanusGraph/HBase 集群
 
@@ -16,7 +18,7 @@
 # 构建 fat JAR
 mvn clean package
 
-# 或使用构建部署脚本（自动检测 JDK 17）
+# 或使用构建部署脚本（自动检测 JDK 8）
 ./build-deploy.sh
 ```
 
@@ -68,6 +70,8 @@ janus> exit
 | `index reindex <name>` | 对已有数据重建索引 |
 | `index describe <name>` | 查看索引详情 |
 | `index repair <name>` | 修复索引状态 |
+
+> 索引命名约定：普通索引 `idx_<key>`，唯一索引 `uni_<key>`（如 `idx_age`、`uni_name`）。
 
 ### Schema（Schema 管理）
 
@@ -144,6 +148,7 @@ exit = quit
 schema list
 
 # 创建属性键（支持类型: String, Integer, Long, Float, Double, Boolean, Date；基数默认 SINGLE）
+schema create key uid String
 schema create key name String
 schema create key age Integer
 schema create key email String
@@ -174,24 +179,27 @@ index list
 
 # 创建复合索引（类型: String/Integer/Long/Float/Double/Boolean/Date, 元素: vertex/edge）
 # 格式: index create <名称> <属性键> <类型> [vertex|edge] [-u]
-index create byName name String vertex -u
-index create byAge age Integer vertex
-index create byWeight weight Double edge
+# 顶点 uid 唯一索引；边 uid 只能普通索引（JanusGraph 唯一索引仅支持顶点）
+index create uni_uid uid String vertex -u
+index create idx_uid uid String edge
+index create uni_name name String vertex -u
+index create idx_age age Integer vertex
+index create idx_weight weight Double edge
 
 # 查看索引状态
-index status byName
-index status byAge
+index status uni_uid
+index status idx_age
 
 # 查看索引详情
-index describe byName
+index describe uni_uid
 
 # JSON 格式列出索引
 index list --json
 
 # 禁用 / 启用索引
-index disable byAge
-index status byAge
-index enable byAge
+index disable idx_age
+index status idx_age
+index enable idx_age
 
 # ==================== 数据查询 ====================
 # 统计顶点和边数量
@@ -239,11 +247,11 @@ config show
 
 # ==================== 重新索引 ====================
 # 对已有数据重新构建索引（大数据量时耗时较长）
-# index reindex byName
+# index reindex uni_name
 
 # ==================== 删除操作（危险，已注释） ====================
 # 删除索引
-# index drop byAge -f
+# index drop idx_age -f
 
 # 删除属性键
 # schema drop key weight
@@ -285,7 +293,7 @@ storage.cache.db-cache-size=0.5
 JAVA_OPTS="-Xmx4g -Xms2g" ./start-cli.sh
 
 # 指定 JDK 路径
-JAVA_HOME=/path/to/jdk-17 ./start-cli.sh
+JAVA_HOME=/path/to/jdk-8 ./start-cli.sh
 ```
 
 ## 部署
@@ -379,13 +387,13 @@ com.chenpp.janus
 
 | 组件 | 版本 |
 |---|---|
-| JanusGraph | 1.0.1 |
-| HBase Client | 2.4.18 |
-| TinkerPop / Gremlin | 3.6.4 |
-| Hadoop | 3.3.6 |
-| JLine | 3.26.3 |
-| Fastjson2 | 2.0.53 |
-| Java | 17 |
+| JanusGraph | 0.6.4 |
+| HBase Client | 2.2.7 |
+| TinkerPop / Gremlin | 3.5.3 |
+| Hadoop | 3.2.2 |
+| JLine | 3.12.1 |
+| Fastjson | 1.2.83 |
+| Java | 8 |
 | Maven | 3.6+ |
 
 ## 开发
@@ -401,4 +409,4 @@ mvn clean package -DskipTests
 ./start-cli.sh src/main/resources/janusgraph-hbase.properties
 ```
 
-> **注意**：项目使用 JDK 17 编译运行。如果系统默认 JDK 版本低于 17，通过 `JAVA_HOME` 指定 JDK 17 路径。
+> **注意**：项目使用 JDK 8 编译运行。如果系统默认 JDK 版本低于 8，通过 `JAVA_HOME` 指定 JDK 8 路径。

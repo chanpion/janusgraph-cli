@@ -11,20 +11,20 @@ echo "========================================="
 echo " JanusGraph CLI - Build & Deploy"
 echo "========================================="
 
-# ── 1. 自动检测 JDK 17 ──
+# ── 1. 自动检测 JDK 8 ──
 if [ -z "$JAVA_HOME" ]; then
   if [ -x /usr/libexec/java_home ]; then
-    JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null || true)
+    JAVA_HOME=$(/usr/libexec/java_home -v 1.8 2>/dev/null || true)
   fi
   if [ -z "$JAVA_HOME" ]; then
-    for dir in /usr/lib/jvm/java-17-* /usr/lib/jvm/jdk-17*; do
+    for dir in /usr/lib/jvm/java-8-* /usr/lib/jvm/jdk-8* /usr/lib/jvm/jdk1.8*; do
       if [ -d "$dir" ]; then JAVA_HOME="$dir"; break; fi
     done
   fi
 fi
 
 if [ -z "$JAVA_HOME" ] || [ ! -f "$JAVA_HOME/bin/javac" ]; then
-  echo "ERROR: JDK 17 not found. Set JAVA_HOME to a JDK 17 path."
+  echo "ERROR: JDK 8 not found. Set JAVA_HOME to a JDK 8 path."
   exit 1
 fi
 export JAVA_HOME
