@@ -9,7 +9,9 @@ import org.janusgraph.core.Cardinality;
 import org.janusgraph.core.Multiplicity;
 import org.janusgraph.core.schema.JanusGraphManagement;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
 /**
  * @author April.Chen

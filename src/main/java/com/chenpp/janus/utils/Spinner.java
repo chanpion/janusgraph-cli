@@ -1,14 +1,7 @@
 package com.chenpp.janus.utils;
 
 /**
- * 单行原地刷新的加载指示器。包裹耗时阻塞调用，让等待期间有活动反馈；
- * 用 try-with-resources 使用，close 时清行，之后才打印结果。
- *
- * <pre>
- * try (Spinner s = Spinner.start("正在创建索引")) {
- *     doSlowWork();
- * }
- * </pre>
+ * 单行原地刷新的加载指示器。必须用 try-with-resources 使用，close 时清行，之后才打印结果。
  *
  * @author April.Chen
  */

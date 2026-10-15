@@ -72,7 +72,7 @@ public class QueryCommand implements Command {
     }
 
     /**
-     * 求值结果物化：遍历 Traversal / Iterator 触发惰性执行。
+     * 遍历惰性 Traversal / Iterator 触发实际执行。
      */
     private Object materialize(Object result) {
         if (result instanceof Traversal) {

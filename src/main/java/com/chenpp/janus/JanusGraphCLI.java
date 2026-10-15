@@ -10,8 +10,10 @@ import com.chenpp.janus.commands.SchemaCommand;
 import com.chenpp.janus.commands.ScriptCommand;
 import com.chenpp.janus.core.GraphManager;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
+import org.jline.reader.impl.history.DefaultHistory;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.slf4j.Logger;
@@ -78,7 +80,6 @@ public class JanusGraphCLI {
         this.graphCommand = graphCmd;
         cmds.put("graph", graphCmd);
 
-        // 内置命令
         cmds.put("help", new HelpCommand(commands));
         cmds.put("exit", new ExitCommand());
         cmds.put("quit", new ExitCommand());
@@ -119,7 +120,7 @@ public class JanusGraphCLI {
 
         LineReader reader = LineReaderBuilder.builder()
                 .terminal(terminal)
-                .history(new org.jline.reader.impl.history.DefaultHistory())
+                .history(new DefaultHistory())
                 .variable(LineReader.HISTORY_FILE, new File(HISTORY_FILE).toPath())
                 .build();
 
@@ -147,7 +148,7 @@ public class JanusGraphCLI {
 
                 executeCommand(line);
 
-            } catch (org.jline.reader.EndOfFileException e) {
+            } catch (EndOfFileException e) {
                 break;
             } catch (Exception e) {
                 System.err.println("错误: " + e.getMessage());
@@ -167,7 +168,6 @@ public class JanusGraphCLI {
         String cmdName = parts[0].toLowerCase();
         String args = parts.length > 1 ? parts[1] : "";
 
-        // 尝试匹配子命令
         boolean found = false;
         for (Map.Entry<String, Command> entry : commands.entrySet()) {
             if (input.startsWith(entry.getKey() + " ")) {

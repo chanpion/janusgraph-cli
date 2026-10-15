@@ -136,7 +136,7 @@ public class IndexCommand implements Command {
         String key = parts[1];
         boolean unique = args.contains("-u");
 
-        java.util.List<String> posArgs = new java.util.ArrayList<>();
+        List<String> posArgs = new ArrayList<>();
         for (int i = 2; i < parts.length; i++) {
             if (!parts[i].equals("-u")) {
                 posArgs.add(parts[i].toLowerCase());
@@ -147,12 +147,10 @@ public class IndexCommand implements Command {
         Class<?> dataType = null;
 
         if (posArgs.size() >= 2) {
-            // JanusApp style: <dataType> [elementType]
             dataType = getDataType(posArgs.get(0));
             elementClass = parseElementType(posArgs.get(1));
         } else if (posArgs.size() == 1) {
             String arg = posArgs.get(0);
-            // Try dataType first, then fall back to elementType (backward compatible)
             dataType = getDataType(arg);
             if (dataType == null) {
                 elementClass = parseElementType(arg);

@@ -5,6 +5,8 @@ import com.chenpp.janus.core.GraphManager;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 /**
  * @author April.Chen
@@ -75,7 +77,7 @@ public class ScriptCommand implements Command {
         System.out.println("正在运行脚本: " + file.getName());
         long startTime = System.currentTimeMillis();
         
-        try (BufferedReader reader = new BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(file), java.nio.charset.StandardCharsets.UTF_8))) {
+        try (BufferedReader reader = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
             String line;
             int lineNumber = 0;
             while ((line = reader.readLine()) != null) {

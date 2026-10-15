@@ -1,13 +1,17 @@
 package com.chenpp.janus.commands;
 
+import com.alibaba.fastjson.JSON;
 import com.chenpp.janus.core.GraphManager;
+import com.chenpp.janus.utils.TableFormatter;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.janusgraph.core.JanusGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedWriter;
 import java.io.File;
-import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -99,8 +103,9 @@ public class BackupCommand implements Command {
             data.add(map);
         }
 
-        try (PrintWriter writer = new PrintWriter(new java.io.OutputStreamWriter(new java.io.FileOutputStream(backupFile), java.nio.charset.StandardCharsets.UTF_8))) {
-            writer.println(com.alibaba.fastjson.JSON.toJSONString(data, true));
+        try (BufferedWriter writer = Files.newBufferedWriter(backupFile.toPath(), StandardCharsets.UTF_8)) {
+            writer.write(JSON.toJSONString(data, true));
+            writer.newLine();
         }
 
         System.out.println("✓ 备份已创建: " + backupFile.getAbsolutePath());
@@ -160,7 +165,7 @@ public class BackupCommand implements Command {
             });
         }
 
-        com.chenpp.janus.utils.TableFormatter.printTable(rows);
+        TableFormatter.printTable(rows);
     }
 
     private void deleteBackup(String filePath) {

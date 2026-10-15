@@ -16,6 +16,7 @@ import org.janusgraph.graphdb.types.vertices.JanusGraphSchemaVertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -97,7 +98,7 @@ public class IndexManager {
         try {
             GraphIndexStatusReport report = ManagementSystem.awaitGraphIndexStatus(graph, indexName)
                     .status(targetStatus)
-                    .timeout(timeoutSeconds, java.time.temporal.ChronoUnit.SECONDS)
+                    .timeout(timeoutSeconds, ChronoUnit.SECONDS)
                     .call();
             if (!report.getSucceeded()) {
                 log.warn("Index '{}' did not reach {} within {}s (notConverged: {})",
@@ -507,7 +508,7 @@ public class IndexManager {
         return false;
     }
 
-    private SchemaStatus getIndexStatusSafely(org.janusgraph.core.schema.JanusGraphIndex index) {
+    private SchemaStatus getIndexStatusSafely(JanusGraphIndex index) {
         PropertyKey[] keys = index.getFieldKeys();
         if (keys.length == 0) {
             return null;
@@ -519,7 +520,7 @@ public class IndexManager {
         return index.getIndexStatus(firstKey);
     }
 
-    private String getIndexStatusForDisplay(org.janusgraph.core.schema.JanusGraphIndex index) {
+    private String getIndexStatusForDisplay(JanusGraphIndex index) {
         SchemaStatus status = getIndexStatusSafely(index);
         return status != null ? status.name() : "UNKNOWN";
     }

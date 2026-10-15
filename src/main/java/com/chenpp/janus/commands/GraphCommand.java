@@ -4,6 +4,8 @@ import com.chenpp.janus.core.GraphManager;
 import com.chenpp.janus.utils.Spinner;
 import org.janusgraph.core.JanusGraph;
 import org.janusgraph.core.schema.JanusGraphManagement;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
@@ -12,8 +14,10 @@ import org.apache.hadoop.hbase.client.TableDescriptor;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 
 /**
@@ -197,10 +201,9 @@ public class GraphCommand implements Command {
      * 先加载 hbase-site.xml，再透传全部 storage.hbase.ext.* 键，最后映射 storage.hostname/storage.port。
      * 未在配置中出现的键保持 hbase-site.xml 的值，不写死默认值（写死 ZK 端口/znode 会覆盖正确配置）。
      */
-    private org.apache.hadoop.conf.Configuration buildHBaseConf() {
-        org.apache.hadoop.conf.Configuration hbaseConf =
-                org.apache.hadoop.hbase.HBaseConfiguration.create();
-        java.util.Properties config = graphManager.getConfig();
+    private Configuration buildHBaseConf() {
+        Configuration hbaseConf = HBaseConfiguration.create();
+        Properties config = graphManager.getConfig();
 
         String prefix = "storage.hbase.ext.";
         for (String key : config.stringPropertyNames()) {
@@ -267,7 +270,7 @@ public class GraphCommand implements Command {
         return cfNames;
     }
 
-    static boolean looksLikeJanusGraph(java.util.Collection<String> cfNames) {
+    static boolean looksLikeJanusGraph(Collection<String> cfNames) {
         int matches = 0;
         for (String cf : cfNames) {
             if (JANUSGRAPH_CF_NAMES.contains(cf)) {
