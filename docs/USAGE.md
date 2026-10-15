@@ -39,13 +39,13 @@ JAVA_OPTS="-Xmx4g -Xms2g" ./start-cli.sh
 
 ```
 ╔═══════════════════════════════════════════════╗
-║     JanusGraph Command Line Tool v1.0        ║
+║          JanusGraph 命令行工具 v1.0           ║
 ╚═══════════════════════════════════════════════╝
 
-Type 'help' for available commands, 'exit' to quit
-Connected to: src/main/resources/janusgraph-10.properties
-Kerberos: enabled (hbase-cluster60@yuntu.com)
-Connection test: OK (vertex count = 4)
+输入 'help' 查看可用命令，'exit' 退出
+已连接至: src/main/resources/janusgraph-10.properties
+Kerberos: 已启用 (hbase-cluster60@yuntu.com)
+连接测试: 正常 (顶点数 = 4)
 
 janus_demo>
 ```
@@ -56,11 +56,12 @@ janus_demo>
 
 ```text
 janus_demo> graph current
-Current graph: janus_demo
-Connected: true
+当前图: janus_demo
+当前库: default
+连接状态: true
 
 janus_demo> config show
-=== Current Configuration ===
+=== 当前配置 ===
   storage.backend = hbase
   storage.hostname = zk1,zk2,zk3
   storage.hbase.table = janus_demo
@@ -71,7 +72,7 @@ janus_demo> config show
 
 ```text
 janus_demo> config reload        # 修改配置文件后热加载并重连
-Configuration reloaded
+配置已重新加载
 ```
 
 ## 3. Schema 管理
@@ -79,50 +80,50 @@ Configuration reloaded
 ```text
 # 查看现有 Schema
 janus_demo> schema list
-=== Schema Summary ===
-Property Keys: []
-Vertex Labels: []
-Edge Labels: []
-Total: 0
+=== Schema 概览 ===
+属性键: []
+顶点标签: []
+边标签: []
+合计: 0
 
 # 创建属性键（类型: String/Integer/Long/Float/Double/Boolean/Date；基数可选，默认 SINGLE）
 janus_demo> schema create key uid String
-✓ PropertyKey 'uid' created successfully
+✓ 属性键 'uid' 创建成功
 janus_demo> schema create key name String
-✓ PropertyKey 'name' created successfully
+✓ 属性键 'name' 创建成功
 janus_demo> schema create key age Integer
-✓ PropertyKey 'age' created successfully
+✓ 属性键 'age' 创建成功
 janus_demo> schema create key weight Double
-✓ PropertyKey 'weight' created successfully
+✓ 属性键 'weight' 创建成功
 janus_demo> schema create key tags String LIST
-✓ PropertyKey 'tags' created successfully
+✓ 属性键 'tags' 创建成功
 
 # 创建顶点/边标签（边多重性 MULTI|SIMPLE，默认 MULTI）
 janus_demo> schema create vertex person
-✓ VertexLabel 'person' created successfully
+✓ 顶点标签 'person' 创建成功
 janus_demo> schema create vertex company
-✓ VertexLabel 'company' created successfully
+✓ 顶点标签 'company' 创建成功
 janus_demo> schema create edge knows
-✓ EdgeLabel 'knows' created successfully
+✓ 边标签 'knows' 创建成功
 janus_demo> schema create edge works_at
-✓ EdgeLabel 'works_at' created successfully
+✓ 边标签 'works_at' 创建成功
 
 # 查看详情 / 统计
 janus_demo> schema show name
-=== Property Key: name ===
-  Data Type: String
-  Cardinality: SINGLE
+=== 属性键: name ===
+  数据类型: String
+  基数: SINGLE
 
 janus_demo> schema stats
-=== Schema Statistics ===
-Property Keys: 5
-Vertex Labels: 2
-Edge Labels: 2
-Total: 9
+=== Schema 统计 ===
+属性键: 5
+顶点标签: 2
+边标签: 2
+合计: 9
 
-Data Statistics:
-  Vertices: 0
-  Edges: 0
+数据统计:
+  顶点数: 0
+  边数: 0
 ```
 
 > 说明：数据写入（第 5、7 节）会自动为缺失的属性键/标签建 schema（`allow-upgrade=true` 时），本节的显式创建是可选的，便于先固化类型。
@@ -139,52 +140,52 @@ JanusGraph 只有配了外部索引后端（ES/Solr）才能用 Mixed 索引；�
 # 创建复合索引：<名称> <属性键> <类型> [vertex|edge] [-u 唯一]
 # 顶点 uid：唯一索引（全图 uid 唯一）
 janus_demo> index create uni_uid uid String vertex -u
-✓ Index 'uni_uid' created successfully
+✓ 索引 'uni_uid' 创建成功
 # 边 uid：只能建普通索引（JanusGraph 不允许在边上建唯一索引）
 janus_demo> index create idx_uid uid String edge
-✓ Index 'idx_uid' created successfully
+✓ 索引 'idx_uid' 创建成功
 janus_demo> index create uni_name name String vertex -u
-✓ Index 'uni_name' created successfully
+✓ 索引 'uni_name' 创建成功
 janus_demo> index create idx_age age Integer vertex
-✓ Index 'idx_age' created successfully
+✓ 索引 'idx_age' 创建成功
 janus_demo> index create idx_weight weight Double edge
-✓ Index 'idx_weight' created successfully
+✓ 索引 'idx_weight' 创建成功
 
 # 查看
 janus_demo> index list
-+---------+---------+-----------+---------+--------+--------+
-| Name    | Status  | Type      | Element | Keys   | Unique |
-+---------+---------+-----------+---------+--------+--------+
-| uni_uid   | ENABLED | Composite | Vertex  | [uid]    | Yes    |
-| idx_uid   | ENABLED | Composite | Edge    | [uid]    | No     |
-| uni_name  | ENABLED | Composite | Vertex  | [name]   | Yes    |
-| idx_age   | ENABLED | Composite | Vertex  | [age]    | No     |
-| idx_weight| ENABLED | Composite | Edge    | [weight] | No     |
-+---------+---------+-----------+---------+--------+--------+
++------------+---------+-----------+------------------+----------+------+
+| 名称       | 状态    | 类型      | 元素             | 属性键   | 唯一 |
++------------+---------+-----------+------------------+----------+------+
+| uni_uid    | ENABLED | Composite | JanusGraphVertex | [uid]    | 是   |
+| idx_uid    | ENABLED | Composite | JanusGraphEdge   | [uid]    | 否   |
+| uni_name   | ENABLED | Composite | JanusGraphVertex | [name]   | 是   |
+| idx_age    | ENABLED | Composite | JanusGraphVertex | [age]    | 否   |
+| idx_weight | ENABLED | Composite | JanusGraphEdge   | [weight] | 否   |
++------------+---------+-----------+------------------+----------+------+
 
 janus_demo> index status uni_uid
-Index 'uni_uid' status: ENABLED
+索引 'uni_uid' 状态: ENABLED
 
 janus_demo> index describe uni_uid
-=== Index: uni_uid ===
-  Type: Composite
-  Element: Vertex
-  Unique: true
-  Status: ENABLED
-  Keys:
+=== 索引: uni_uid ===
+  类型: Composite
+  元素: JanusGraphVertex
+  唯一: true
+  状态: ENABLED
+  属性键:
     - uid (String)
 
 janus_demo> index list --json          # JSON 输出
 
 # 禁用/启用/重建
 janus_demo> index disable idx_age
-✓ Index 'idx_age' disabled successfully
+✓ 索引 'idx_age' 禁用成功
 janus_demo> index enable idx_age
-✓ Index 'idx_age' enabled successfully
+✓ 索引 'idx_age' 启用成功
 janus_demo> index reindex idx_age        # 大数据量时耗时较长，会要求确认
 ```
 
-> 索引创建内部会走 `REGISTER → REINDEX → ENABLED`，并等待至 `ENABLED`（默认最多 300s）。**若超时会如实报 `✗ Failed`**，可用 `index status <name>` 复查（此时定义已提交、REINDEX 可能仍在进行）。
+> 索引创建内部会走 `REGISTER → REINDEX → ENABLED`，并等待至 `ENABLED`（默认最多 300s）。**若超时会如实报 `✗ ...失败`**，可用 `index status <name>` 复查（此时定义已提交、REINDEX 可能仍在进行）。
 
 ## 5. 写入数据（Gremlin，自动提交）
 
@@ -193,9 +194,9 @@ CLI 内置 Gremlin 执行（TinkerPop `GremlinGroovyScriptEngine`），**读写�
 ```text
 # 新增顶点
 janus_demo> g.addV('person').property('uid','person-1').property('name','marko').property('age',29)
-Result (took 55ms):
-  Results: 1
-  [0] Vertex: id=4240, label=person uid=person-1 name=marko age=29
+结果 (耗时 55ms):
+  结果数: 1
+  [0] 顶点: id=4240, label=person uid=person-1 name=marko age=29
 
 janus_demo> g.addV('person').property('uid','person-2').property('name','vadas').property('age',27)
 janus_demo> g.addV('person').property('uid','person-3').property('name','josh').property('age',32)
@@ -219,27 +220,29 @@ janus_demo> g.V().has('name','vadas').drop()
 ```text
 # 计数（全表扫描；会打印 "use indexes" WARN，属正常现象）
 janus_demo> g.V().count()
-Result (took 19ms):
+结果 (耗时 19ms):
   3
 janus_demo> g.E().count()
+结果 (耗时 5ms):
   2
 
 # 走索引的等值查询（命中复合索引，不再 WARN）
 janus_demo> g.V().has('name','marko')
-Result (took 8ms):
-  Results: 1
-  [0] Vertex: id=4240, label=person uid=person-1 name=marko age=30
+结果 (耗时 8ms):
+  结果数: 1
+  [0] 顶点: id=4240, label=person uid=person-1 name=marko age=30
 # 唯一索引 uid 上的等值查询（同样命中索引）
 janus_demo> g.V().has('uid','person-1')
-Result (took 6ms):
-  Results: 1
-  [0] Vertex: id=4240, label=person uid=person-1 name=marko age=30
+结果 (耗时 6ms):
+  结果数: 1
+  [0] 顶点: id=4240, label=person uid=person-1 name=marko age=30
 janus_demo> g.V().has('age',29).count()
+结果 (耗时 4ms):
   0
 
 # 是否命中索引
 janus_demo> g.V().has('name','marko').profile()
-Result (took 12ms):
+结果 (耗时 12ms):
   [Traversal Metrics
    Step                                                               Count  Traversers ...
    JanusGraphStep([],[name.eq(marko)])                                    1          1 ...
@@ -248,8 +251,8 @@ Result (took 12ms):
 # 遍历 / 采样
 janus_demo> g.V().limit(10)
 janus_demo> g.V().valueMap()
-Result (took 15ms):
-  Results: 3
+结果 (耗时 15ms):
+  结果数: 3
   [0] {name=[marko], age=[30]}
   ...
 janus_demo> g.E().valueMap()
@@ -281,11 +284,11 @@ janus_demo> g.E().valueMap()
 
 ```text
 janus_demo> batch import docs/examples/data.json
-Importing data from docs/examples/data.json (JSON)...
-Import completed: 4 vertices, 3 edges (took 120ms)
+正在从 docs/examples/data.json 导入数据 (JSON)...
+导入完成: 4 顶点, 3 边 (耗时 120ms)
 ```
 
-> `id` 是**文件内逻辑 id**（非 JanusGraph 顶点 id），仅用于边的 `from`/`to` 关联；端点缺失的边会被跳过并提示 `Skipped edge: missing endpoint`。
+> `id` 是**文件内逻辑 id**（非 JanusGraph 顶点 id），仅用于边的 `from`/`to` 关联；端点缺失的边会被跳过并提示 `已跳过边: 缺少端点`。
 
 ### 7.2 CSV 导入
 
@@ -308,9 +311,9 @@ marko,josh,1.0,csv-e2
 
 ```text
 janus_demo> batch import docs/examples/vertices.csv
-Import completed: 3 vertices, 0 edges (took 30ms)
+导入完成: 3 顶点, 0 边 (耗时 30ms)
 janus_demo> batch import docs/examples/edges.csv
-Import completed: 0 vertices, 2 edges (took 15ms)
+导入完成: 0 顶点, 2 边 (耗时 15ms)
 ```
 
 > CSV 限制：顶点标签固定为 `vertex`；类型按列名启发式推断（`age`/`*count`→Integer、`weight`/`*score*`→Double、`active`/`is*`→Boolean，其余 String）；边标签固定为 `edge`。
@@ -321,63 +324,66 @@ Import completed: 0 vertices, 2 edges (took 15ms)
 
 ```text
 janus_demo> batch count
-Vertices: 4
-Edges: 3
+顶点数: 4
+边数: 3
 
 janus_demo> batch sample 3
-Sample vertices:
+采样顶点:
   [person] 4240 name=marko age=29
   ...
-Sample edges:
+采样边:
   [knows] 4240 -> 4256
 
 # 导出（JSON 可再次 batch import 往返）
 janus_demo> batch export out.json --json
-Exported to out.json (took 40ms)
+已导出至 out.json (耗时 40ms)
 
 # 导出（CSV：无表头、带 id/label，仅便于查看，不可回导）
 janus_demo> batch export out.csv
-Exported to out.csv (took 20ms)
+已导出至 out.csv (耗时 20ms)
 ```
 
 ## 8. 备份
 
 ```text
 janus_demo> backup create demo
-Creating backup: demo.json
-✓ Backup created: /path/to/backups/demo.json
-  Vertices: 4
+正在创建备份: demo.json
+✓ 备份已创建: /path/to/backups/demo.json
+  顶点数: 4
 
 janus_demo> backup list
-+-------+--------+---------------------+--------------------------------+
-| Name  | Size   | Date                | Path                           |
-+-------+--------+---------------------+--------------------------------+
++-----------+--------+---------------------+----------------------------+
+| 名称      | 大小   | 日期                | 路径                       |
++-----------+--------+---------------------+----------------------------+
 | demo.json | 1.2 KB | 2026-09-30 10:00:00 | /path/to/backups/demo.json |
-+-------+--------+---------------------+--------------------------------+
++-----------+--------+---------------------+----------------------------+
 
 janus_demo> backup delete demo.json
-✓ Backup deleted: demo.json
+✓ 备份已删除: demo.json
 ```
 
-> ⚠️ **限制**：`backup create` 只导出**顶点**（不含边），文件写到 `backups/<name>.json`；**`backup restore` 目前是占位实现**（会提示 `Restore not yet implemented`），不能用于恢复数据。需要恢复请用第 7 节的 `batch import` + `batch export` JSON。
+> ⚠️ **限制**：`backup create` 只导出**顶点**（不含边），文件写到 `backups/<name>.json`；**`backup restore` 目前是占位实现**（会提示 `! 恢复功能尚未实现，此为占位提示`），不能用于恢复数据。需要恢复请用第 7 节的 `batch import` + `batch export` JSON。
 
 ## 9. 图管理
 
 ```text
 janus_demo> graph current
-Current graph: janus_demo
-Connected: true
+当前图: janus_demo
+当前库: default
+连接状态: true
 
-# 列出可用图：按列族结构识别 JanusGraph 表（真实图至少含 edgestore/graphindex/system_properties 等列族）
+# 列出可用图：仅列当前库（storage.hbase.table 的命名空间）内、按列族结构识别出的 JanusGraph 表
 janus_demo> graph list
-=== Available Graphs ===
+
+=== 可用图 (库: default) ===
   janus_demo (*)
   janusgraph
-  (*) = current
+  (*) = 当前图
 
 # 列出「开放实例」；索引卡在 INSTALLED 常见于存在陈旧实例（此前非正常退出的进程/会话）
 janus_demo> graph instances
-=== Open JanusGraph Instances ===
+
+=== 打开的 JanusGraph 实例 ===
   3a7f0c9e-...-20260930 (current)
   19b2d1aa-...-20260929
 
@@ -385,25 +391,25 @@ janus_demo> graph instances
 
 # 强制关闭陈旧实例
 janus_demo> graph close-instance 19b2d1aa-...-20260929
-✓ Instance '19b2d1aa-...-20260929' force-closed
+✓ 实例 '19b2d1aa-...-20260929' 已强制关闭
 
-# 切换图（会改变后续操作的落库表）
+# 切换图（会改变后续操作的落库表）；图名为裸名，自动限定到当前库
 janus_demo> graph use janusgraph
-Switching from 'janus_demo' to 'janusgraph'...
-JanusGraph connected successfully
-Switched to graph 'janusgraph' (vertex count: 0)
+正在从 'janus_demo' 切换到 'janusgraph'...
+已切换到图 'janusgraph' (顶点数: 0)
 janusgraph>
 ```
 
 切换失败（例如目标图使用了本地 classpath 缺失的自定义组件）会**自动回滚并说明原因**：
 
 ```text
-janus_demo> graph use yuntu_2405:duigong_2405
-Switching from 'janus_demo' to 'yuntu_2405:duigong_2405'...
-Failed to switch to graph 'yuntu_2405:duigong_2405': Could not find implementation class: cn.tongdun.yuntu.haina.client.YuntuIDPlacementStrategy
-Reverted to graph 'janus_demo'
+janus_demo> graph use duigong_2405
+正在从 'janus_demo' 切换到 'duigong_2405'...
+切换到图 'duigong_2405' 失败: Could not find implementation class: cn.tongdun.yuntu.haina.client.YuntuIDPlacementStrategy
+已回退到图 'janus_demo'
 ```
 
+> **作用域**：图列表与切换限定在**当前库**——`storage.hbase.table` 形如 `ns:table` 时 `ns` 即当前库（无 `:` 则为 `default`）。`graph list` 只列当前库内的图；`graph use` / `graph create` 只接受**裸表名**并自动限定到当前库，含 `:` 的名字（如 `nsB:graphB`）会被拒绝。仅 HBase 后端支持。
 > 若目标图依赖自定义类（如自定义 `ids.placement`），需把对应 jar 加入 `start-cli.sh` 的 classpath 才能打开。
 > `graph create <name>` 可新建并切换（会先确认）。
 
@@ -413,14 +419,15 @@ Reverted to graph 'janus_demo'
 
 ```text
 janus_demo> script list
-=== Available Scripts ===
-  example.script (xxxx bytes)
+
+=== 可用脚本 ===
+  example.script (5903 字节)
 
 janus_demo> script run example.script
-Running script: example.script
+正在运行脚本: example.script
 [1] schema list
 ...
-✓ Script completed (took 2100ms)
+✓ 脚本执行完成 (耗时 2100ms)
 ```
 
 ## 11. 清理（危险操作）
@@ -430,18 +437,18 @@ Running script: example.script
 ```text
 # 删除索引（-f 跳过确认）
 janus_demo> index drop idx_age -f
-✓ Index 'idx_age' dropped successfully
+✓ 索引 'idx_age' 删除成功
 
 # 删除 Schema 元素（key/vertex/edge，需 y 确认）
 janus_demo> schema drop key weight
-Dropping schema key 'weight' may affect existing data. Continue? (y/N): y
-✓ Schema key 'weight' dropped successfully
+删除 Schema key 'weight' 可能影响已有数据，是否继续? (y/N): y
+✓ Schema key 'weight' 删除成功
 janus_demo> schema drop vertex company
 janus_demo> schema drop edge works_at
 
 # 清空所有数据（必须 --force）
 janus_demo> batch delete-all --force
-All data deleted.
+所有数据已删除。
 ```
 
 ---
@@ -465,10 +472,10 @@ exit = quit
 | `index create` 报 `✗ Failed` | 多为等待 `ENABLED` 超时（默认 300s）。定义已提交，用 `index status <name>` 复查；可 `index enable <name>` / `index reindex <name>` 继续推进，或 `index drop <name> -f` 重来 |
 | 日志出现 `PermanentLockingException: Local lock contention` | JanusGraph 同进程内事务争锁（常见于索引任务提交与另一事务并发）。等锁过期（`storage.lock.expiry-time`，默认 300s）后重试，或 `index drop <name> -f` 后重建；并确认表含 `edgestore_lock_` 等锁列族 |
 | 索引卡在 `INSTALLED`（`REGISTER_INDEX` 不收敛） | 通常是存在**陈旧实例**：推进到 `REGISTERED` 需要集群所有实例确认，幽灵实例会一直卡住。执行 `graph instances` 查看，用 `graph close-instance <id>` 关闭非 `(current)` 的残留实例，再 `index reindex <name>`。注意 `ENABLE_INDEX`/`REINDEX`/`REMOVE_INDEX` 均不适用于 `INSTALLED`，必须先 REGISTER |
-| `index drop` 无反应 | 未加 `-f` 时会提示 `Are you sure... (y/N)` |
+| `index drop` 无反应 | 未加 `-f` 时会提示 `确认删除索引 '<name>'? (y/N)` |
 | `index drop` 执行较慢 | 删除索引分两步：先异步删除索引数据（等待其 scan job 完成，最多 300s），再删除索引定义。JanusGraph 0.6.x 的 `REMOVE_INDEX` **只删数据、不删定义**，CLI 额外补做了定义删除，故不会残留 `DISABLED` 索引 |
 | `graph use` 失败并回滚 | 目标图可能依赖本地缺失的类（自定义 `ids.placement` 等），把对应 jar 加入 classpath |
-| `graph list` 为空 | 该集群里没有可识别的 JanusGraph 表（按列族判断）；当前配置图始终会显示 |
+| `graph list` 为空 | 当前库（`storage.hbase.table` 的命名空间）内没有可识别的 JanusGraph 表（按列族判断）；当前配置图始终会显示 |
 | 给边的 `uid` 建唯一索引报错 | JanusGraph **唯一索引只能建在顶点上**（`Unique indexes can only be created on vertices`）；边的同名字段请用普通索引（如 `idx_uid`） |
 | 配置从哪来 | 默认从 classpath 发现 `janusgraph-hbase.properties`，也可在启动时显式传路径 |
 
@@ -499,7 +506,7 @@ storage.password=cassandra        # config show 中自动显示为 ***
 说明：
 
 - **当前图名**取自 `storage.cql.keyspace`，提示符与 `graph current` 显示该 keyspace。
-- `graph list` / `graph use` / `graph create` **仅 HBase 支持**，在 Cassandra 下会提示不支持并返回；`graph current` / `graph instances` / `graph close-instance` 仍可用。
-- Cassandra 后端不支持 Kerberos，启动横幅会显示 `Kerberos: disabled`。
+- `graph list` / `graph use` / `graph create` **仅 HBase 支持**（且只在 `storage.hbase.table` 所在命名空间内生效），在 Cassandra 下会提示不支持并返回；`graph current` / `graph instances` / `graph close-instance` 仍可用。
+- Cassandra 后端不支持 Kerberos，启动横幅会显示 `Kerberos: 已禁用`。
 
 

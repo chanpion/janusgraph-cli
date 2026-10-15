@@ -1,12 +1,13 @@
 package com.chenpp.janus.commands;
 
 import com.chenpp.janus.core.GraphManager;
+import com.chenpp.janus.utils.Spinner;
 import org.janusgraph.core.JanusGraph;
 import org.janusgraph.core.schema.JanusGraphManagement;
-import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.TableDescriptor;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -21,6 +22,9 @@ import java.util.Set;
 public class GraphCommand implements Command {
 
     private final GraphManager graphManager;
+
+    // 进程内复用的 HBase 连接：listGraphs 每次调用都新建连接（Kerberos 建连较慢），缓存以避免重复建连
+    private Connection hbaseConnection;
 
     // JanusGraph 各存储的列族名（长名 + short-cf-names 的短名）；表包含其中至少 3 个即视为图
     private static final Set<String> JANUSGRAPH_CF_NAMES = new HashSet<>(Arrays.asList(
@@ -109,58 +113,83 @@ public class GraphCommand implements Command {
     private void showCurrent() {
         String name = graphManager.getCurrentGraphName();
         System.out.println("当前图: " + name);
+        if (graphManager.isHBaseBackend()) {
+            System.out.println("当前库: " + graphManager.getCurrentNamespace());
+        }
         System.out.println("连接状态: " + graphManager.isConnected());
     }
 
     private void listGraphs() {
-        System.out.println("\n=== 可用图 ===");
         if (!graphManager.isHBaseBackend()) {
+            System.out.println("\n=== 可用图 ===");
             System.out.println("  仅 HBase 后端支持列出图 (当前: "
                     + graphManager.getBackend() + ")");
             System.out.println();
             return;
         }
 
-        Connection connection = null;
-        Admin admin = null;
+        String namespace = graphManager.getCurrentNamespace();
+        String current = graphManager.getCurrentGraphName();
+        System.out.println("\n=== 可用图 (库: " + namespace + ") ===");
 
-        try {
-            connection = ConnectionFactory.createConnection(buildHBaseConf());
-            admin = connection.getAdmin();
-
-            String current = graphManager.getCurrentGraphName();
-            List<String> graphTables = new ArrayList<>();
-            for (TableName tn : admin.listTableNames()) {
-                String name = tn.getNameAsString();
-                if (name.startsWith("hbase:")) {
-                    continue; // 跳过 HBase 系统表
-                }
-                // 按列族结构识别：包含 JanusGraph 存储列族的表即视为图；当前图始终保留
-                if (isJanusGraphTable(admin, tn) || name.equals(current)) {
-                    graphTables.add(name);
-                }
-            }
-
-            if (graphTables.isEmpty()) {
-                System.out.println("  未找到 JanusGraph 表");
-            } else {
-                for (String t : graphTables) {
-                    String marker = t.equals(current) ? " (*)" : "";
-                    System.out.println("  " + t + marker);
-                }
-                System.out.println("  (*) = 当前图");
-            }
-
-        } catch (Exception e) {
-            System.out.println("  列出 HBase 表失败: " + e.getMessage());
-        } finally {
+        List<String> graphTables = new ArrayList<>();
+        String error = null;
+        try (Spinner spinner = Spinner.start("正在加载图列表")) {
+            Admin admin = getHBaseConnection().getAdmin();
             try {
-                if (admin != null) admin.close();
-                if (connection != null) connection.close();
-            } catch (Exception ignored) {
+                // 一次取回全部表描述符，避免对每张表逐个 getDescriptor 的 N+1 RPC
+                for (TableDescriptor td : admin.listTableDescriptors()) {
+                    String name = td.getTableName().getNameAsString();
+                    if (name.startsWith("hbase:")) {
+                        continue; // 跳过 HBase 系统表
+                    }
+                    if (!GraphManager.namespaceOf(name).equals(namespace)) {
+                        continue; // 仅当前库
+                    }
+                    // 按列族结构识别：包含 JanusGraph 存储列族的表即视为图；当前图始终保留
+                    if (looksLikeJanusGraph(cfNames(td)) || name.equals(current)) {
+                        graphTables.add(name);
+                    }
+                }
+            } finally {
+                admin.close();
             }
+        } catch (Exception e) {
+            error = e.getMessage();
+        }
+
+        if (error != null) {
+            System.out.println("  列出 HBase 表失败: " + error);
+        } else if (graphTables.isEmpty()) {
+            System.out.println("  当前库 '" + namespace + "' 下未找到 JanusGraph 表");
+        } else {
+            for (String t : graphTables) {
+                String marker = t.equals(current) ? " (*)" : "";
+                System.out.println("  " + t + marker);
+            }
+            System.out.println("  (*) = 当前图");
         }
         System.out.println();
+    }
+
+    /**
+     * 懒创建并复用 HBase 连接：listGraphs 每次调用若新建连接，Kerberos 握手开销会拖慢返回。
+     */
+    private synchronized Connection getHBaseConnection() throws Exception {
+        if (hbaseConnection == null || hbaseConnection.isClosed()) {
+            hbaseConnection = ConnectionFactory.createConnection(buildHBaseConf());
+        }
+        return hbaseConnection;
+    }
+
+    public synchronized void close() {
+        if (hbaseConnection != null) {
+            try {
+                hbaseConnection.close();
+            } catch (Exception ignored) {
+            }
+            hbaseConnection = null;
+        }
     }
 
     /**
@@ -230,16 +259,12 @@ public class GraphCommand implements Command {
         }
     }
 
-    private boolean isJanusGraphTable(Admin admin, TableName tableName) {
-        try {
-            List<String> cfNames = new ArrayList<>();
-            for (byte[] cf : admin.getDescriptor(tableName).getColumnFamilyNames()) {
-                cfNames.add(new String(cf, StandardCharsets.UTF_8));
-            }
-            return looksLikeJanusGraph(cfNames);
-        } catch (Exception e) {
-            return false;
+    private static List<String> cfNames(TableDescriptor td) {
+        List<String> cfNames = new ArrayList<>();
+        for (byte[] cf : td.getColumnFamilyNames()) {
+            cfNames.add(new String(cf, StandardCharsets.UTF_8));
         }
+        return cfNames;
     }
 
     static boolean looksLikeJanusGraph(java.util.Collection<String> cfNames) {

@@ -95,7 +95,7 @@ public class GraphManager {
             log.info("JanusGraph connected successfully");
         } catch (Exception e) {
             isConnected = false;
-            log.error("Failed to connect to JanusGraph: {}", e.getMessage());
+            log.error("Failed to connect to JanusGraph: {}", causeChain(e), e);
             throw new RuntimeException("连接失败", e);
         }
     }
@@ -213,29 +213,36 @@ public class GraphManager {
             return false;
         }
 
-        if (tableName.equals(currentTable)) {
-            System.out.println("已连接到图 '" + tableName + "'");
+        String namespace = getCurrentNamespace();
+        if (tableName.contains(":")) {
+            System.out.println("仅支持当前库 '" + namespace + "' 下的图名，不支持跨库名: " + tableName);
+            return false;
+        }
+
+        String target = "default".equals(namespace) ? tableName : namespace + ":" + tableName;
+
+        if (target.equals(currentTable)) {
+            System.out.println("已连接到图 '" + target + "'");
             return true;
         }
 
-        System.out.println("正在从 '" + currentTable + "' 切换到 '" + tableName + "'...");
+        System.out.println("正在从 '" + currentTable + "' 切换到 '" + target + "'...");
 
         close();
 
-        config.setProperty(graphNameKey(), tableName);
+        config.setProperty(graphNameKey(), target);
         try {
             connect();
             long count = testConnection();
             if (count >= 0) {
-                System.out.println("已切换到图 '" + tableName + "' (顶点数: " + count + ")");
+                System.out.println("已切换到图 '" + target + "' (顶点数: " + count + ")");
                 return true;
             } else {
-                System.out.println("已切换到图 '" + tableName + "' (新图, 暂无数据)");
+                System.out.println("已切换到图 '" + target + "' (新图, 暂无数据)");
                 return true;
             }
         } catch (Exception e) {
-            Throwable cause = e.getCause() != null ? e.getCause() : e;
-            System.out.println("切换到图 '" + tableName + "' 失败: " + cause.getMessage());
+            System.out.println("切换到图 '" + target + "' 失败: " + causeChain(e));
             config.setProperty(graphNameKey(), currentTable);
             try {
                 connect();
@@ -244,6 +251,37 @@ public class GraphManager {
             }
             return false;
         }
+    }
+
+    public String getCurrentNamespace() {
+        return namespaceOf(config.getProperty(graphNameKey()));
+    }
+
+    public static String namespaceOf(String tableName) {
+        if (tableName == null) {
+            return "default";
+        }
+        int idx = tableName.indexOf(':');
+        return idx >= 0 ? tableName.substring(0, idx) : "default";
+    }
+
+    /**
+     * 展开异常链，逐层拼接 "类名: 消息"，用 " <- " 连接，
+     * 便于在只有一行输出的场景（切换图提示）看到真正的根因。
+     */
+    static String causeChain(Throwable t) {
+        StringBuilder sb = new StringBuilder();
+        while (t != null) {
+            if (sb.length() > 0) {
+                sb.append(" <- ");
+            }
+            sb.append(t.getClass().getSimpleName());
+            if (t.getMessage() != null) {
+                sb.append(": ").append(t.getMessage());
+            }
+            t = t.getCause();
+        }
+        return sb.toString();
     }
 
     private void initSecurity() {

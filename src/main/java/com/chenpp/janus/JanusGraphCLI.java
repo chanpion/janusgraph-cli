@@ -32,6 +32,7 @@ public class JanusGraphCLI {
 
     private final GraphManager graphManager;
     private final Map<String, Command> commands;
+    private GraphCommand graphCommand;
     private volatile boolean running = true;
 
     public JanusGraphCLI(GraphManager graphManager) {
@@ -40,6 +41,9 @@ public class JanusGraphCLI {
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("\n正在关闭...");
+            if (graphCommand != null) {
+                graphCommand.close();
+            }
             graphManager.close();
         }));
     }
@@ -71,6 +75,7 @@ public class JanusGraphCLI {
         cmds.put("script", scriptCmd);
 
         GraphCommand graphCmd = new GraphCommand(graphManager);
+        this.graphCommand = graphCmd;
         cmds.put("graph", graphCmd);
 
         // 内置命令

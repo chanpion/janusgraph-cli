@@ -3,6 +3,7 @@ package com.chenpp.janus.commands;
 import com.chenpp.janus.core.GraphManager;
 import com.chenpp.janus.core.IndexManager;
 import com.chenpp.janus.utils.JsonFormatter;
+import com.chenpp.janus.utils.Spinner;
 import com.chenpp.janus.utils.TableFormatter;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -169,7 +170,10 @@ public class IndexCommand implements Command {
         }
 
         IndexManager indexManager = new IndexManager(graphManager);
-        boolean success = indexManager.createCompositeIndex(name, key, dataType, elementClass, unique);
+        boolean success;
+        try (Spinner spinner = Spinner.start("正在创建索引 '" + name + "'")) {
+            success = indexManager.createCompositeIndex(name, key, dataType, elementClass, unique);
+        }
 
         if (success) {
             System.out.println("✓ 索引 '" + name + "' 创建成功");
@@ -242,7 +246,10 @@ public class IndexCommand implements Command {
         }
 
         IndexManager indexManager = new IndexManager(graphManager);
-        boolean success = indexManager.dropIndexSafely(name);
+        boolean success;
+        try (Spinner spinner = Spinner.start("正在删除索引 '" + name + "'")) {
+            success = indexManager.dropIndexSafely(name);
+        }
 
         if (success) {
             System.out.println("✓ 索引 '" + name + "' 删除成功");
@@ -273,7 +280,10 @@ public class IndexCommand implements Command {
         }
 
         IndexManager indexManager = new IndexManager(graphManager);
-        boolean success = indexManager.enableIndex(name);
+        boolean success;
+        try (Spinner spinner = Spinner.start("正在启用索引 '" + name + "'")) {
+            success = indexManager.enableIndex(name);
+        }
 
         if (success) {
             System.out.println("✓ 索引 '" + name + "' 启用成功");
@@ -289,7 +299,10 @@ public class IndexCommand implements Command {
         }
 
         IndexManager indexManager = new IndexManager(graphManager);
-        boolean success = indexManager.disableIndex(name);
+        boolean success;
+        try (Spinner spinner = Spinner.start("正在禁用索引 '" + name + "'")) {
+            success = indexManager.disableIndex(name);
+        }
 
         if (success) {
             System.out.println("✓ 索引 '" + name + "' 禁用成功");
@@ -315,7 +328,10 @@ public class IndexCommand implements Command {
         long startTime = System.currentTimeMillis();
 
         IndexManager indexManager = new IndexManager(graphManager);
-        boolean success = indexManager.reindex(name);
+        boolean success;
+        try (Spinner spinner = Spinner.start("正在重建索引 '" + name + "'")) {
+            success = indexManager.reindex(name);
+        }
 
         long duration = (System.currentTimeMillis() - startTime) / 1000;
 
