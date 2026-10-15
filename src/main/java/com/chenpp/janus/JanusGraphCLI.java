@@ -39,7 +39,7 @@ public class JanusGraphCLI {
         this.commands = initializeCommands();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("\nShutting down...");
+            System.out.println("\n正在关闭...");
             graphManager.close();
         }));
     }
@@ -47,36 +47,29 @@ public class JanusGraphCLI {
     private Map<String, Command> initializeCommands() {
         Map<String, Command> cmds = new LinkedHashMap<>();
 
-        // 索引命令
         IndexCommand indexCmd = new IndexCommand(graphManager);
         cmds.put("index", indexCmd);
         cmds.put("idx", indexCmd);
 
-        // Schema命令
         SchemaCommand schemaCmd = new SchemaCommand(graphManager);
         cmds.put("schema", schemaCmd);
         cmds.put("sc", schemaCmd);
 
-        // 查询命令
         QueryCommand queryCmd = new QueryCommand(graphManager);
         cmds.put("query", queryCmd);
         cmds.put("q", queryCmd);
         cmds.put("gremlin", queryCmd);
         cmds.put("g", queryCmd);
 
-        // 批量命令
         BatchCommand batchCmd = new BatchCommand(graphManager);
         cmds.put("batch", batchCmd);
 
-        // 备份命令
         BackupCommand backupCmd = new BackupCommand(graphManager);
         cmds.put("backup", backupCmd);
 
-        // 脚本命令
         ScriptCommand scriptCmd = new ScriptCommand(graphManager, this);
         cmds.put("script", scriptCmd);
 
-        // 图管理命令
         GraphCommand graphCmd = new GraphCommand(graphManager);
         cmds.put("graph", graphCmd);
 
@@ -99,20 +92,20 @@ public class JanusGraphCLI {
 
     public void start() throws Exception {
         System.out.println("╔═══════════════════════════════════════════════╗");
-        System.out.println("║     JanusGraph Command Line Tool v1.0        ║");
+        System.out.println("║          JanusGraph 命令行工具 v1.0           ║");
         System.out.println("╚═══════════════════════════════════════════════╝");
         System.out.println();
-        System.out.println("Type 'help' for available commands, 'exit' to quit");
-        System.out.println("Connected to: " + graphManager.getConfigPath());
+        System.out.println("输入 'help' 查看可用命令，'exit' 退出");
+        System.out.println("已连接至: " + graphManager.getConfigPath());
         if (graphManager.isKerberosEnabled()) {
-            System.out.println("Kerberos: enabled (" + graphManager.getLoginUser().getUserName() + ")");
+            System.out.println("Kerberos: 已启用 (" + graphManager.getLoginUser().getUserName() + ")");
         } else {
-            System.out.println("Kerberos: disabled");
+            System.out.println("Kerberos: 已禁用");
         }
         long vertexCount = graphManager.testConnection();
         System.out.println(vertexCount >= 0
-                ? "Connection test: OK (vertex count = " + vertexCount + ")"
-                : "Connection test: WARNING (see logs; continuing)");
+                ? "连接测试: 正常 (顶点数 = " + vertexCount + ")"
+                : "连接测试: 警告 (见日志; 继续运行)");
         System.out.println();
 
         Terminal terminal = TerminalBuilder.builder()
@@ -152,12 +145,12 @@ public class JanusGraphCLI {
             } catch (org.jline.reader.EndOfFileException e) {
                 break;
             } catch (Exception e) {
-                System.err.println("Error: " + e.getMessage());
+                System.err.println("错误: " + e.getMessage());
             }
         }
 
         terminal.close();
-        System.out.println("Goodbye!");
+        System.out.println("再见！");
     }
 
     public void executeCommand(String input) {
@@ -187,7 +180,7 @@ public class JanusGraphCLI {
                 try {
                     queryCmd.execute(input);
                 } catch (Exception e) {
-                    System.err.println("Query execution failed: " + e.getMessage());
+                    System.err.println("查询执行失败: " + e.getMessage());
                 }
                 return;
             }
@@ -195,22 +188,20 @@ public class JanusGraphCLI {
 
         Command cmd = commands.get(cmdName);
         if (cmd == null) {
-            System.err.println("Unknown command: " + cmdName);
-            System.out.println("Type 'help' for available commands");
+            System.err.println("未知命令: " + cmdName);
+            System.out.println("输入 'help' 查看可用命令");
             return;
         }
 
         try {
             cmd.execute(args);
         } catch (Exception e) {
-            System.err.println("Command execution failed: " + e.getMessage());
+            System.err.println("命令执行失败: " + e.getMessage());
             if (e.getCause() != null) {
-                System.err.println("Cause: " + e.getCause().getMessage());
+                System.err.println("原因: " + e.getCause().getMessage());
             }
         }
     }
-
-    // ========== 内置命令 ==========
 
     class HelpCommand implements Command {
         private final Map<String, Command> commands;
@@ -221,60 +212,60 @@ public class JanusGraphCLI {
 
         @Override
         public void execute(String args) {
-            System.out.println("\n=== Available Commands ===");
+            System.out.println("\n=== 可用命令 ===");
             System.out.println();
-            System.out.println("INDEX OPERATIONS:");
-            System.out.println("  index list                    - List all indexes");
-            System.out.println("  index create <name> <key> <type> [-u] - Create composite index");
-            System.out.println("  index drop <name> [-f]       - Drop index");
-            System.out.println("  index status <name>          - Show index status");
-            System.out.println("  index enable <name>          - Enable index");
-            System.out.println("  index disable <name>         - Disable index");
-            System.out.println("  index reindex <name>         - Reindex existing data");
-            System.out.println("  index describe <name>        - Describe index details");
-            System.out.println("  index repair <name>          - Repair index issues");
+            System.out.println("索引操作:");
+            System.out.println("  index list                    - 列出所有索引");
+            System.out.println("  index create <name> <key> <type> [-u] - 创建复合索引");
+            System.out.println("  index drop <name> [-f]       - 删除索引");
+            System.out.println("  index status <name>          - 查看索引状态");
+            System.out.println("  index enable <name>          - 启用索引");
+            System.out.println("  index disable <name>         - 禁用索引");
+            System.out.println("  index reindex <name>         - 对已有数据重建索引");
+            System.out.println("  index describe <name>        - 查看索引详情");
+            System.out.println("  index repair <name>          - 修复索引问题");
             System.out.println();
-            System.out.println("SCHEMA OPERATIONS:");
-            System.out.println("  schema list                  - List all property keys and labels");
-            System.out.println("  schema show <name>           - Show schema details");
-            System.out.println("  schema create key <name> <type>    - Create property key");
-            System.out.println("  schema create vertex <name>        - Create vertex label");
-            System.out.println("  schema create edge <name>          - Create edge label");
-            System.out.println("  schema drop key|vertex|edge <name> - Drop schema element");
-            System.out.println("  schema stats                 - Show schema statistics");
+            System.out.println("Schema 操作:");
+            System.out.println("  schema list                  - 列出所有属性键与标签");
+            System.out.println("  schema show <name>           - 查看 Schema 详情");
+            System.out.println("  schema create key <name> <type>    - 创建属性键");
+            System.out.println("  schema create vertex <name>        - 创建顶点标签");
+            System.out.println("  schema create edge <name>          - 创建边标签");
+            System.out.println("  schema drop key|vertex|edge <name> - 删除 Schema 元素");
+            System.out.println("  schema stats                 - 查看 Schema 统计");
             System.out.println();
-            System.out.println("QUERY OPERATIONS:");
-            System.out.println("  query <gremlin>              - Execute Gremlin query");
-            System.out.println("  q <gremlin>                  - Alias for query");
-            System.out.println("  g <gremlin>                  - Alias for query");
+            System.out.println("查询操作:");
+            System.out.println("  query <gremlin>              - 执行 Gremlin 查询");
+            System.out.println("  q <gremlin>                  - query 的别名");
+            System.out.println("  g <gremlin>                  - query 的别名");
             System.out.println();
-            System.out.println("BATCH OPERATIONS:");
-            System.out.println("  batch import <file> [--csv|--json] - Import data");
-            System.out.println("  batch export <file> [--csv|--json] - Export data");
-            System.out.println("  batch delete-all [--force]   - Delete all data");
-            System.out.println("  batch count                  - Count vertices and edges");
-            System.out.println("  batch sample <n>             - Sample data");
+            System.out.println("批量操作:");
+            System.out.println("  batch import <file> [--csv|--json] - 导入数据");
+            System.out.println("  batch export <file> [--csv|--json] - 导出数据");
+            System.out.println("  batch delete-all [--force]   - 删除所有数据");
+            System.out.println("  batch count                  - 统计顶点与边数量");
+            System.out.println("  batch sample <n>             - 采样数据");
             System.out.println();
-            System.out.println("BACKUP OPERATIONS:");
-            System.out.println("  backup create [name]         - Create a backup");
-            System.out.println("  backup restore <file>        - Restore from backup");
-            System.out.println("  backup list                  - List backups");
-            System.out.println("  backup delete <file>         - Delete backup");
+            System.out.println("备份操作:");
+            System.out.println("  backup create [name]         - 创建备份");
+            System.out.println("  backup restore <file>        - 从备份恢复");
+            System.out.println("  backup list                  - 列出备份");
+            System.out.println("  backup delete <file>         - 删除备份");
             System.out.println();
-            System.out.println("SCRIPT OPERATIONS:");
-            System.out.println("  script run <file>            - Execute script file");
-            System.out.println("  script list                  - List available scripts");
+            System.out.println("脚本操作:");
+            System.out.println("  script run <file>            - 执行脚本文件");
+            System.out.println("  script list                  - 列出可用脚本");
             System.out.println();
-            System.out.println("GRAPH OPERATIONS:");
-            System.out.println("  graph create <name>          - Create and switch to a new graph");
-            System.out.println("  graph current                - Show current graph name");
-            System.out.println("  graph list                   - List available graphs");
+            System.out.println("图操作:");
+            System.out.println("  graph create <name>          - 创建并切换图");
+            System.out.println("  graph current                - 查看当前图名");
+            System.out.println("  graph list                   - 列出可用图");
             System.out.println();
-            System.out.println("CONFIG OPERATIONS:");
-            System.out.println("  config show                  - Show current configuration");
-            System.out.println("  config reload                - Reload configuration");
+            System.out.println("配置操作:");
+            System.out.println("  config show                  - 查看当前配置");
+            System.out.println("  config reload                - 重新加载配置");
             System.out.println();
-            System.out.println("Shortcuts:");
+            System.out.println("快捷方式:");
             System.out.println("  idx = index,  sc = schema,  q = query");
             System.out.println("  g = gremlin");
             System.out.println();
@@ -301,9 +292,9 @@ public class JanusGraphCLI {
                 graphManager.printConfig();
             } else if (args.trim().equals("reload")) {
                 graphManager.reloadConfig();
-                System.out.println("Configuration reloaded");
+                System.out.println("配置已重新加载");
             } else {
-                System.out.println("Usage: config show|reload");
+                System.out.println("用法: config show|reload");
             }
         }
     }
@@ -326,7 +317,7 @@ public class JanusGraphCLI {
                 cli.start();
             }
         } catch (Exception e) {
-            System.err.println("Failed to start JanusGraph CLI: " + e.getMessage());
+            System.err.println("启动 JanusGraph CLI 失败: " + e.getMessage());
             e.printStackTrace();
             System.exit(1);
         }

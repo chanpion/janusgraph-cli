@@ -52,21 +52,21 @@ public class SchemaCommand implements Command {
                 showStats();
                 break;
             default:
-                System.out.println("Unknown subcommand: " + subCmd);
+                System.out.println("未知子命令: " + subCmd);
                 showUsage();
         }
     }
 
     private void showUsage() {
-        System.out.println("\n=== Schema Commands ===");
-        System.out.println("  schema list                - List all schema elements");
-        System.out.println("  schema show <name>         - Show schema element details");
-        System.out.println("  schema create key <name> <type> [SINGLE|LIST|SET] - Create property key");
-        System.out.println("  schema create vertex <name>                        - Create vertex label");
-        System.out.println("  schema create edge <name> [MULTI|SIMPLE|...]       - Create edge label");
-        System.out.println("  schema drop key|vertex|edge <name>                 - Drop schema element");
-        System.out.println("  schema stats               - Show schema statistics");
-        System.out.println("  types: String, Integer, Long, Float, Double, Boolean, Date");
+        System.out.println("\n=== Schema 命令 ===");
+        System.out.println("  schema list                - 列出所有 Schema 元素");
+        System.out.println("  schema show <name>         - 查看 Schema 元素详情");
+        System.out.println("  schema create key <name> <type> [SINGLE|LIST|SET] - 创建属性键");
+        System.out.println("  schema create vertex <name>                        - 创建顶点标签");
+        System.out.println("  schema create edge <name> [MULTI|SIMPLE|...]       - 创建边标签");
+        System.out.println("  schema drop key|vertex|edge <name>                 - 删除 Schema 元素");
+        System.out.println("  schema stats               - 查看 Schema 统计");
+        System.out.println("  类型: String, Integer, Long, Float, Double, Boolean, Date");
         System.out.println();
     }
 
@@ -89,11 +89,11 @@ public class SchemaCommand implements Command {
                 edgeLabels.add(el.name());
             }
 
-            System.out.println("\n=== Schema Summary ===");
-            System.out.println("Property Keys: " + propertyKeys);
-            System.out.println("Vertex Labels: " + vertexLabels);
-            System.out.println("Edge Labels: " + edgeLabels);
-            System.out.println("Total: " + (propertyKeys.size() + vertexLabels.size() + edgeLabels.size()));
+            System.out.println("\n=== Schema 概览 ===");
+            System.out.println("属性键: " + propertyKeys);
+            System.out.println("顶点标签: " + vertexLabels);
+            System.out.println("边标签: " + edgeLabels);
+            System.out.println("合计: " + (propertyKeys.size() + vertexLabels.size() + edgeLabels.size()));
             System.out.println();
 
         } finally {
@@ -103,7 +103,7 @@ public class SchemaCommand implements Command {
 
     private void showSchema(String name) {
         if (name.isEmpty()) {
-            System.out.println("Usage: schema show <name>");
+            System.out.println("用法: schema show <name>");
             return;
         }
 
@@ -112,30 +112,30 @@ public class SchemaCommand implements Command {
         try {
             if (mgmt.containsPropertyKey(name)) {
                 PropertyKey key = mgmt.getPropertyKey(name);
-                System.out.println("\n=== Property Key: " + name + " ===");
-                System.out.println("  Data Type: " + key.dataType().getSimpleName());
-                System.out.println("  Cardinality: " + key.cardinality());
+                System.out.println("\n=== 属性键: " + name + " ===");
+                System.out.println("  数据类型: " + key.dataType().getSimpleName());
+                System.out.println("  基数: " + key.cardinality());
                 return;
             }
 
             if (mgmt.containsVertexLabel(name)) {
                 VertexLabel label = mgmt.getVertexLabel(name);
-                System.out.println("\n=== Vertex Label: " + name + " ===");
-                System.out.println("  Partitioned: " + label.isPartitioned());
-                System.out.println("  Static: " + label.isStatic());
+                System.out.println("\n=== 顶点标签: " + name + " ===");
+                System.out.println("  分区: " + label.isPartitioned());
+                System.out.println("  静态: " + label.isStatic());
                 return;
             }
 
             if (mgmt.containsEdgeLabel(name)) {
                 EdgeLabel label = mgmt.getEdgeLabel(name);
-                System.out.println("\n=== Edge Label: " + name + " ===");
-                System.out.println("  Multiplicity: " + label.multiplicity());
-                System.out.println("  Directed: " + label.isDirected());
-                System.out.println("  Unidirected: " + label.isUnidirected());
+                System.out.println("\n=== 边标签: " + name + " ===");
+                System.out.println("  多重性: " + label.multiplicity());
+                System.out.println("  有向: " + label.isDirected());
+                System.out.println("  单向: " + label.isUnidirected());
                 return;
             }
 
-            System.out.println("Schema element '" + name + "' not found");
+            System.out.println("Schema 元素 '" + name + "' 未找到");
 
         } finally {
             mgmt.commit();
@@ -146,7 +146,7 @@ public class SchemaCommand implements Command {
         String[] parts = args.split("\\s+");
         String kind = parts.length > 0 ? parts[0].toLowerCase() : "";
         if (parts.length < 2) {
-            System.out.println("Usage: schema create key <name> <type> [SINGLE|LIST|SET]");
+            System.out.println("用法: schema create key <name> <type> [SINGLE|LIST|SET]");
             System.out.println("       schema create vertex <name>");
             System.out.println("       schema create edge <name> [MULTI|SIMPLE]");
             return;
@@ -156,7 +156,7 @@ public class SchemaCommand implements Command {
             case "key":
             case "property":
                 if (parts.length < 3) {
-                    System.out.println("Usage: schema create key <name> <type> [SINGLE|LIST|SET]");
+                    System.out.println("用法: schema create key <name> <type> [SINGLE|LIST|SET]");
                     return;
                 }
                 createPropertyKey(parts[1], parts[2], parts.length > 3 ? parts[3] : "SINGLE");
@@ -168,7 +168,7 @@ public class SchemaCommand implements Command {
                 createLabel(parts[1], "edge", parts.length > 2 ? parts[2] : "MULTI");
                 break;
             default:
-                System.out.println("Unknown create target: " + kind + " (use key/vertex/edge)");
+                System.out.println("未知创建目标: " + kind + " (可用 key/vertex/edge)");
                 showUsage();
         }
     }
@@ -176,8 +176,8 @@ public class SchemaCommand implements Command {
     private void createPropertyKey(String name, String typeName, String cardinalityInput) throws Exception {
         Class<?> dataType = getTypeClass(typeName);
         if (dataType == null) {
-            System.out.println("Invalid type: " + typeName
-                    + " (supported: String, Integer, Long, Float, Double, Boolean, Date)");
+            System.out.println("类型无效: " + typeName
+                    + " (支持: String, Integer, Long, Float, Double, Boolean, Date)");
             return;
         }
 
@@ -185,7 +185,7 @@ public class SchemaCommand implements Command {
         try {
             cardinality = Cardinality.valueOf(cardinalityInput.toUpperCase());
         } catch (IllegalArgumentException e) {
-            System.out.println("Invalid cardinality: " + cardinalityInput + " (use SINGLE/LIST/SET)");
+            System.out.println("基数无效: " + cardinalityInput + " (可用 SINGLE/LIST/SET)");
             return;
         }
 
@@ -193,12 +193,12 @@ public class SchemaCommand implements Command {
         JanusGraphManagement mgmt = graph.openManagement();
         try {
             if (mgmt.containsPropertyKey(name)) {
-                System.out.println("PropertyKey '" + name + "' already exists");
+                System.out.println("属性键 '" + name + "' 已存在");
                 return;
             }
             mgmt.makePropertyKey(name).dataType(dataType).cardinality(cardinality).make();
             mgmt.commit();
-            System.out.println("✓ PropertyKey '" + name + "' created successfully");
+            System.out.println("✓ 属性键 '" + name + "' 创建成功");
         } finally {
             if (mgmt.isOpen()) {
                 mgmt.rollback();
@@ -212,23 +212,23 @@ public class SchemaCommand implements Command {
         try {
             if (type.equals("vertex")) {
                 if (mgmt.containsVertexLabel(name)) {
-                    System.out.println("VertexLabel '" + name + "' already exists");
+                    System.out.println("顶点标签 '" + name + "' 已存在");
                     return;
                 }
                 mgmt.makeVertexLabel(name).make();
-                System.out.println("✓ VertexLabel '" + name + "' created successfully");
+                System.out.println("✓ 顶点标签 '" + name + "' 创建成功");
             } else {
                 if (mgmt.containsEdgeLabel(name)) {
-                    System.out.println("EdgeLabel '" + name + "' already exists");
+                    System.out.println("边标签 '" + name + "' 已存在");
                     return;
                 }
                 String multi = multiplicityInput.toUpperCase();
                 if (!multi.equals("MULTI") && !multi.equals("SIMPLE")) {
-                    System.out.println("Invalid multiplicity: " + multiplicityInput + " (use MULTI|SIMPLE)");
+                    System.out.println("多重性无效: " + multiplicityInput + " (可用 MULTI|SIMPLE)");
                     return;
                 }
                 mgmt.makeEdgeLabel(name).multiplicity(Multiplicity.valueOf(multi)).make();
-                System.out.println("✓ EdgeLabel '" + name + "' created successfully");
+                System.out.println("✓ 边标签 '" + name + "' 创建成功");
             }
             mgmt.commit();
         } finally {
@@ -241,7 +241,7 @@ public class SchemaCommand implements Command {
     private void dropSchema(String args) throws Exception {
         String[] parts = args.split("\\s+");
         if (parts.length < 2) {
-            System.out.println("Usage: schema drop key <name>");
+            System.out.println("用法: schema drop key <name>");
             System.out.println("       schema drop vertex <name>");
             System.out.println("       schema drop edge <name>");
             return;
@@ -249,15 +249,15 @@ public class SchemaCommand implements Command {
         String kind = parts[0].toLowerCase();
         String name = parts[1];
         if (!kind.equals("key") && !kind.equals("vertex") && !kind.equals("edge")) {
-            System.out.println("Unknown drop target: " + kind + " (use key/vertex/edge)");
+            System.out.println("未知删除目标: " + kind + " (可用 key/vertex/edge)");
             return;
         }
 
-        System.out.print("Dropping schema " + kind + " '" + name
-                + "' may affect existing data. Continue? (y/N): ");
+        System.out.print("删除 Schema " + kind + " '" + name
+                + "' 可能影响已有数据，是否继续? (y/N): ");
         String confirm = graphManager.getScanner().nextLine().trim().toLowerCase();
         if (!confirm.equals("y") && !confirm.equals("yes")) {
-            System.out.println("Operation cancelled");
+            System.out.println("操作已取消");
             return;
         }
 
@@ -266,25 +266,25 @@ public class SchemaCommand implements Command {
         try {
             if (kind.equals("key")) {
                 if (!mgmt.containsPropertyKey(name)) {
-                    System.out.println("PropertyKey '" + name + "' not found");
+                    System.out.println("属性键 '" + name + "' 未找到");
                     return;
                 }
                 mgmt.getPropertyKey(name).remove();
             } else if (kind.equals("vertex")) {
                 if (!mgmt.containsVertexLabel(name)) {
-                    System.out.println("VertexLabel '" + name + "' not found");
+                    System.out.println("顶点标签 '" + name + "' 未找到");
                     return;
                 }
                 mgmt.getVertexLabel(name).remove();
             } else {
                 if (!mgmt.containsEdgeLabel(name)) {
-                    System.out.println("EdgeLabel '" + name + "' not found");
+                    System.out.println("边标签 '" + name + "' 未找到");
                     return;
                 }
                 mgmt.getEdgeLabel(name).remove();
             }
             mgmt.commit();
-            System.out.println("✓ Schema " + kind + " '" + name + "' dropped successfully");
+            System.out.println("✓ Schema " + kind + " '" + name + "' 删除成功");
         } finally {
             if (mgmt.isOpen()) {
                 mgmt.rollback();
@@ -313,20 +313,20 @@ public class SchemaCommand implements Command {
             int vertexLabelCount = vertexLabels.size();
             int edgeLabelCount = edgeLabels.size();
 
-            System.out.println("\n=== Schema Statistics ===");
-            System.out.println("Property Keys: " + propertyKeyCount);
-            System.out.println("Vertex Labels: " + vertexLabelCount);
-            System.out.println("Edge Labels: " + edgeLabelCount);
-            System.out.println("Total: " + (propertyKeyCount + vertexLabelCount + edgeLabelCount));
+            System.out.println("\n=== Schema 统计 ===");
+            System.out.println("属性键: " + propertyKeyCount);
+            System.out.println("顶点标签: " + vertexLabelCount);
+            System.out.println("边标签: " + edgeLabelCount);
+            System.out.println("合计: " + (propertyKeyCount + vertexLabelCount + edgeLabelCount));
 
             try {
                 long vertexCount = graph.traversal().V().count().next();
                 long edgeCount = graph.traversal().E().count().next();
-                System.out.println("\nData Statistics:");
-                System.out.println("  Vertices: " + vertexCount);
-                System.out.println("  Edges: " + edgeCount);
+                System.out.println("\n数据统计:");
+                System.out.println("  顶点数: " + vertexCount);
+                System.out.println("  边数: " + edgeCount);
             } catch (Exception e) {
-                System.out.println("  (Failed to get data statistics)");
+                System.out.println("  (获取数据统计失败)");
             }
             System.out.println();
 

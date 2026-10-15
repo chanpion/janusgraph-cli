@@ -73,22 +73,22 @@ public class IndexCommand implements Command {
                 repairIndex(subArgs);
                 break;
             default:
-                System.out.println("Unknown subcommand: " + subCmd);
+                System.out.println("未知子命令: " + subCmd);
                 showUsage();
         }
     }
 
     private void showUsage() {
-        System.out.println("\n=== Index Commands ===");
-        System.out.println("  index list [--json]            - List all indexes");
-        System.out.println("  index create <name> <key> <type> [-u] - Create composite index");
-        System.out.println("  index drop <name> [-f]         - Drop index");
-        System.out.println("  index status <name>            - Show index status");
-        System.out.println("  index enable <name>            - Enable index");
-        System.out.println("  index disable <name>           - Disable index");
-        System.out.println("  index reindex <name>           - Reindex existing data");
-        System.out.println("  index describe <name>          - Describe index details");
-        System.out.println("  index repair <name>            - Repair index issues");
+        System.out.println("\n=== 索引命令 ===");
+        System.out.println("  index list [--json]            - 列出所有索引");
+        System.out.println("  index create <name> <key> <type> [-u] - 创建复合索引");
+        System.out.println("  index drop <name> [-f]         - 删除索引");
+        System.out.println("  index status <name>            - 查看索引状态");
+        System.out.println("  index enable <name>            - 启用索引");
+        System.out.println("  index disable <name>           - 禁用索引");
+        System.out.println("  index reindex <name>           - 对已有数据重建索引");
+        System.out.println("  index describe <name>          - 查看索引详情");
+        System.out.println("  index repair <name>            - 修复索引问题");
         System.out.println();
     }
 
@@ -102,7 +102,7 @@ public class IndexCommand implements Command {
         }
 
         List<String[]> rows = new ArrayList<>();
-        rows.add(new String[]{"Name", "Status", "Type", "Element", "Keys", "Unique"});
+        rows.add(new String[]{"名称", "状态", "类型", "元素", "属性键", "唯一"});
         for (Map<String, Object> info : indexList) {
             rows.add(new String[]{
                     (String) info.get("name"),
@@ -110,7 +110,7 @@ public class IndexCommand implements Command {
                     (String) info.get("type"),
                     (String) info.get("element"),
                     info.get("keys").toString(),
-                    info.containsKey("unique") ? "Yes" : "No"
+                    info.containsKey("unique") ? "是" : "否"
             });
         }
         TableFormatter.printTable(rows);
@@ -119,12 +119,12 @@ public class IndexCommand implements Command {
     private void createIndex(String args) throws Exception {
         String[] parts = args.split("\\s+");
         if (parts.length < 3) {
-            System.out.println("Usage: index create <name> <key> <dataType> [elementType] [-u]");
+            System.out.println("用法: index create <name> <key> <dataType> [elementType] [-u]");
             System.out.println("       index create <name> <key> <elementType> [-u]");
             System.out.println("  dataType: String/Integer/Long/Float/Double/Boolean/Date");
-            System.out.println("  elementType: vertex(v)/edge(e), defaults to vertex");
-            System.out.println("  -u: unique index");
-            System.out.println("Examples:");
+            System.out.println("  elementType: vertex(v)/edge(e)，默认 vertex");
+            System.out.println("  -u: 唯一索引");
+            System.out.println("示例:");
             System.out.println("  index create byName name String");
             System.out.println("  index create byWeight weight Double edge");
             System.out.println("  index create byName name vertex -u");
@@ -135,7 +135,6 @@ public class IndexCommand implements Command {
         String key = parts[1];
         boolean unique = args.contains("-u");
 
-        // Collect non-flag positional args after name and key
         java.util.List<String> posArgs = new java.util.ArrayList<>();
         for (int i = 2; i < parts.length; i++) {
             if (!parts[i].equals("-u")) {
@@ -160,11 +159,11 @@ public class IndexCommand implements Command {
         }
 
         if (dataType == null) {
-            System.out.print("Enter data type (String/Integer/Long/Float/Double/Boolean/Date): ");
+            System.out.print("请输入数据类型 (String/Integer/Long/Float/Double/Boolean/Date): ");
             String dataTypeInput = graphManager.getScanner().nextLine().trim();
             dataType = getDataType(dataTypeInput);
             if (dataType == null) {
-                System.out.println("Invalid data type, using String");
+                System.out.println("数据类型无效，使用 String");
                 dataType = String.class;
             }
         }
@@ -173,19 +172,19 @@ public class IndexCommand implements Command {
         boolean success = indexManager.createCompositeIndex(name, key, dataType, elementClass, unique);
 
         if (success) {
-            System.out.println("✓ Index '" + name + "' created successfully");
+            System.out.println("✓ 索引 '" + name + "' 创建成功");
         } else {
             String status = indexManager.getIndexStatus(name);
-            System.out.println("✗ Failed to create index '" + name + "' (current status: " + status + ")");
+            System.out.println("✗ 创建索引 '" + name + "' 失败 (当前状态: " + status + ")");
             if ("INSTALLED".equals(status)) {
                 System.out.println("  卡在 INSTALLED：注册需要集群所有实例确认。先 'graph instances' 查看，"
                         + "用 'graph close-instance <id>' 关闭陈旧实例，再 'index reindex " + name + "' 重试。");
             } else if ("DISABLED".equals(status)) {
-                System.out.println("  Next: 'index enable " + name + "'");
+                System.out.println("  下一步: 'index enable " + name + "'");
             } else if ("REGISTERED".equals(status)) {
-                System.out.println("  Next: 'index reindex " + name + "'");
+                System.out.println("  下一步: 'index reindex " + name + "'");
             } else {
-                System.out.println("  Next: 'index reindex " + name + "'; to remove: 'index drop " + name + " -f'");
+                System.out.println("  下一步: 'index reindex " + name + "'；如需删除: 'index drop " + name + " -f'");
             }
         }
     }
@@ -226,7 +225,7 @@ public class IndexCommand implements Command {
     private void dropIndex(String args) throws Exception {
         String[] parts = args.split("\\s+");
         if (parts.length < 1) {
-            System.out.println("Usage: index drop <name> [-f]");
+            System.out.println("用法: index drop <name> [-f]");
             return;
         }
 
@@ -234,10 +233,10 @@ public class IndexCommand implements Command {
         boolean force = args.contains("-f");
 
         if (!force) {
-            System.out.print("Are you sure you want to drop index '" + name + "'? (y/N): ");
+            System.out.print("确认删除索引 '" + name + "'? (y/N): ");
             String confirm = graphManager.getScanner().nextLine().trim().toLowerCase();
             if (!confirm.equals("y") && !confirm.equals("yes")) {
-                System.out.println("Operation cancelled");
+                System.out.println("操作已取消");
                 return;
             }
         }
@@ -246,10 +245,10 @@ public class IndexCommand implements Command {
         boolean success = indexManager.dropIndexSafely(name);
 
         if (success) {
-            System.out.println("✓ Index '" + name + "' dropped successfully");
+            System.out.println("✓ 索引 '" + name + "' 删除成功");
         } else {
             String status = indexManager.getIndexStatus(name);
-            System.out.println("✗ Failed to drop index '" + name + "' (current status: " + status + ")");
+            System.out.println("✗ 删除索引 '" + name + "' 失败 (当前状态: " + status + ")");
             if ("DISABLED".equals(status)) {
                 System.out.println("  索引数据已删除，但索引定义仍存在，删除定义失败；可重试 'index drop " + name + " -f'。");
             }
@@ -258,18 +257,18 @@ public class IndexCommand implements Command {
 
     private void showStatus(String name) {
         if (name.isEmpty()) {
-            System.out.println("Usage: index status <name>");
+            System.out.println("用法: index status <name>");
             return;
         }
 
         IndexManager indexManager = new IndexManager(graphManager);
         String status = indexManager.getIndexStatus(name);
-        System.out.println("Index '" + name + "' status: " + status);
+        System.out.println("索引 '" + name + "' 状态: " + status);
     }
 
     private void enableIndex(String name) throws Exception {
         if (name.isEmpty()) {
-            System.out.println("Usage: index enable <name>");
+            System.out.println("用法: index enable <name>");
             return;
         }
 
@@ -277,15 +276,15 @@ public class IndexCommand implements Command {
         boolean success = indexManager.enableIndex(name);
 
         if (success) {
-            System.out.println("✓ Index '" + name + "' enabled successfully");
+            System.out.println("✓ 索引 '" + name + "' 启用成功");
         } else {
-            System.out.println("✗ Failed to enable index '" + name + "'");
+            System.out.println("✗ 启用索引 '" + name + "' 失败");
         }
     }
 
     private void disableIndex(String name) throws Exception {
         if (name.isEmpty()) {
-            System.out.println("Usage: index disable <name>");
+            System.out.println("用法: index disable <name>");
             return;
         }
 
@@ -293,26 +292,26 @@ public class IndexCommand implements Command {
         boolean success = indexManager.disableIndex(name);
 
         if (success) {
-            System.out.println("✓ Index '" + name + "' disabled successfully");
+            System.out.println("✓ 索引 '" + name + "' 禁用成功");
         } else {
-            System.out.println("✗ Failed to disable index '" + name + "'");
+            System.out.println("✗ 禁用索引 '" + name + "' 失败");
         }
     }
 
     private void reindex(String name) throws Exception {
         if (name.isEmpty()) {
-            System.out.println("Usage: index reindex <name>");
+            System.out.println("用法: index reindex <name>");
             return;
         }
 
-        System.out.print("Reindexing may take a long time. Continue? (y/N): ");
+        System.out.print("重建索引可能耗时较长，是否继续? (y/N): ");
         String confirm = graphManager.getScanner().nextLine().trim().toLowerCase();
         if (!confirm.equals("y") && !confirm.equals("yes")) {
-            System.out.println("Operation cancelled");
+            System.out.println("操作已取消");
             return;
         }
 
-        System.out.println("Starting reindex for '" + name + "'... This may take a while.");
+        System.out.println("开始重建索引 '" + name + "'... 可能需要一段时间。");
         long startTime = System.currentTimeMillis();
 
         IndexManager indexManager = new IndexManager(graphManager);
@@ -321,15 +320,15 @@ public class IndexCommand implements Command {
         long duration = (System.currentTimeMillis() - startTime) / 1000;
 
         if (success) {
-            System.out.println("✓ Index '" + name + "' reindexed successfully (took " + duration + "s)");
+            System.out.println("✓ 索引 '" + name + "' 重建成功 (耗时 " + duration + "s)");
         } else {
-            System.out.println("✗ Failed to reindex '" + name + "'");
+            System.out.println("✗ 重建索引 '" + name + "' 失败");
         }
     }
 
     private void describeIndex(String name) {
         if (name.isEmpty()) {
-            System.out.println("Usage: index describe <name>");
+            System.out.println("用法: index describe <name>");
             return;
         }
 
@@ -338,16 +337,16 @@ public class IndexCommand implements Command {
         try {
             JanusGraphIndex idx = mgmt.getGraphIndex(name);
             if (idx == null) {
-                System.out.println("Index '" + name + "' not found");
+                System.out.println("索引 '" + name + "' 未找到");
                 return;
             }
 
-            System.out.println("\n=== Index: " + name + " ===");
-            System.out.println("  Type: " + (idx.isMixedIndex() ? "Mixed" : "Composite"));
-            System.out.println("  Element: " + idx.getIndexedElement().getSimpleName());
-            System.out.println("  Unique: " + idx.isUnique());
-            System.out.println("  Status: " + (idx.getFieldKeys().length > 0 ? idx.getIndexStatus(idx.getFieldKeys()[0]) : "UNKNOWN"));
-            System.out.println("  Keys:");
+            System.out.println("\n=== 索引: " + name + " ===");
+            System.out.println("  类型: " + (idx.isMixedIndex() ? "Mixed" : "Composite"));
+            System.out.println("  元素: " + idx.getIndexedElement().getSimpleName());
+            System.out.println("  唯一: " + idx.isUnique());
+            System.out.println("  状态: " + (idx.getFieldKeys().length > 0 ? idx.getIndexStatus(idx.getFieldKeys()[0]) : "UNKNOWN"));
+            System.out.println("  属性键:");
             for (PropertyKey key : idx.getFieldKeys()) {
                 System.out.println("    - " + key.name() + " (" + key.dataType().getSimpleName() + ")");
             }
@@ -358,49 +357,49 @@ public class IndexCommand implements Command {
 
     private void repairIndex(String name) throws Exception {
         if (name.isEmpty()) {
-            System.out.println("Usage: index repair <name>");
+            System.out.println("用法: index repair <name>");
             return;
         }
 
-        System.out.println("Attempting to repair index '" + name + "'...");
+        System.out.println("尝试修复索引 '" + name + "'...");
 
         JanusGraph graph = graphManager.getGraph();
         JanusGraphManagement mgmt = graph.openManagement();
         try {
             JanusGraphIndex idx = mgmt.getGraphIndex(name);
             if (idx == null) {
-                System.out.println("Index '" + name + "' not found");
+                System.out.println("索引 '" + name + "' 未找到");
                 return;
             }
 
             String status = String.valueOf(idx.getFieldKeys().length > 0 ? idx.getIndexStatus(idx.getFieldKeys()[0]) : "UNKNOWN");
-            System.out.println("Current status: " + status);
+            System.out.println("当前状态: " + status);
 
             if (status.contains("INSTALLED")) {
-                System.out.println("Index is INSTALLED. Attempting to enable...");
+                System.out.println("索引状态为 INSTALLED，尝试启用...");
                 mgmt.updateIndex(idx, SchemaAction.ENABLE_INDEX);
                 mgmt.commit();
-                System.out.println("Index enabled, waiting for registration...");
+                System.out.println("索引已启用，等待注册...");
                 Thread.sleep(5000);
             } else if (status.contains("REGISTERED")) {
-                System.out.println("Index is REGISTERED. Attempting reindex...");
+                System.out.println("索引状态为 REGISTERED，尝试重建...");
                 mgmt.updateIndex(idx, SchemaAction.REINDEX);
                 mgmt.commit();
-                System.out.println("Reindex started...");
+                System.out.println("重建索引已启动...");
             } else if (status.contains("DISABLED")) {
-                System.out.println("Index is DISABLED. Attempting to enable...");
+                System.out.println("索引状态为 DISABLED，尝试启用...");
                 mgmt.updateIndex(idx, SchemaAction.ENABLE_INDEX);
                 mgmt.commit();
-                System.out.println("Index enabled");
+                System.out.println("索引已启用");
             } else {
-                System.out.println("Index in state '" + status + "' cannot be auto-repaired");
+                System.out.println("索引状态 '" + status + "' 无法自动修复");
             }
 
             Thread.sleep(3000);
 
             mgmt = graph.openManagement();
             idx = mgmt.getGraphIndex(name);
-            System.out.println("New status: " + (idx.getFieldKeys().length > 0 ? idx.getIndexStatus(idx.getFieldKeys()[0]) : "UNKNOWN"));
+            System.out.println("新状态: " + (idx.getFieldKeys().length > 0 ? idx.getIndexStatus(idx.getFieldKeys()[0]) : "UNKNOWN"));
             mgmt.commit();
 
         } finally {

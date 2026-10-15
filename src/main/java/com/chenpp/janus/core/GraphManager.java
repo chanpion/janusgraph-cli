@@ -8,10 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.security.PrivilegedExceptionAction;
 import java.util.Properties;
 import java.util.Scanner;
@@ -43,7 +43,7 @@ public class GraphManager {
             config.load(in);
             logConfigSummary();
         } catch (IOException e) {
-            throw new RuntimeException("Failed to load config: " + configPath, e);
+            throw new RuntimeException("加载配置失败: " + configPath, e);
         }
     }
 
@@ -55,14 +55,14 @@ public class GraphManager {
         File file = new File(path);
         if (file.isFile()) {
             log.info("Configuration loaded from file: {}", file.getAbsolutePath());
-            return new FileInputStream(file);
+            return Files.newInputStream(file.toPath());
         }
         InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(path);
         if (in == null) {
             in = GraphManager.class.getClassLoader().getResourceAsStream(path);
         }
         if (in == null) {
-            throw new FileNotFoundException("Config not found on filesystem or classpath: " + path);
+            throw new FileNotFoundException("在文件系统或 classpath 中未找到配置: " + path);
         }
         log.info("Configuration loaded from classpath: {}", path);
         return in;
@@ -96,7 +96,7 @@ public class GraphManager {
         } catch (Exception e) {
             isConnected = false;
             log.error("Failed to connect to JanusGraph: {}", e.getMessage());
-            throw new RuntimeException("Connection failed", e);
+            throw new RuntimeException("连接失败", e);
         }
     }
 
@@ -133,7 +133,7 @@ public class GraphManager {
     }
 
     public void printConfig() {
-        System.out.println("\n=== Current Configuration ===");
+        System.out.println("\n=== 当前配置 ===");
         config.forEach((k, v) -> {
             String key = k.toString();
             System.out.println("  " + key + " = " + (isSensitive(key) ? "***" : v));
@@ -203,23 +203,22 @@ public class GraphManager {
 
     public boolean switchToGraph(String tableName) {
         if (!isHBaseBackend()) {
-            System.out.println("Switching graphs is not supported for backend '"
-                    + getBackend() + "' (HBase only)");
+            System.out.println("后端 '" + getBackend() + "' 不支持切换图 (仅 HBase)");
             return false;
         }
 
         String currentTable = config.getProperty(graphNameKey());
         if (tableName == null || tableName.trim().isEmpty()) {
-            System.out.println("Graph name cannot be empty");
+            System.out.println("图名不能为空");
             return false;
         }
 
         if (tableName.equals(currentTable)) {
-            System.out.println("Already connected to graph '" + tableName + "'");
+            System.out.println("已连接到图 '" + tableName + "'");
             return true;
         }
 
-        System.out.println("Switching from '" + currentTable + "' to '" + tableName + "'...");
+        System.out.println("正在从 '" + currentTable + "' 切换到 '" + tableName + "'...");
 
         close();
 
@@ -228,19 +227,19 @@ public class GraphManager {
             connect();
             long count = testConnection();
             if (count >= 0) {
-                System.out.println("Switched to graph '" + tableName + "' (vertex count: " + count + ")");
+                System.out.println("已切换到图 '" + tableName + "' (顶点数: " + count + ")");
                 return true;
             } else {
-                System.out.println("Switched to graph '" + tableName + "' (new graph, no data yet)");
+                System.out.println("已切换到图 '" + tableName + "' (新图, 暂无数据)");
                 return true;
             }
         } catch (Exception e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
-            System.out.println("Failed to switch to graph '" + tableName + "': " + cause.getMessage());
+            System.out.println("切换到图 '" + tableName + "' 失败: " + cause.getMessage());
             config.setProperty(graphNameKey(), currentTable);
             try {
                 connect();
-                System.out.println("Reverted to graph '" + currentTable + "'");
+                System.out.println("已回退到图 '" + currentTable + "'");
             } catch (Exception ignored) {
             }
             return false;
@@ -248,7 +247,6 @@ public class GraphManager {
     }
 
     private void initSecurity() {
-        // Kerberos/Hadoop UGI 为 HBase 专属，其他后端（如 cql）不初始化
         if (!isHBaseBackend()) {
             return;
         }
@@ -297,7 +295,7 @@ public class GraphManager {
 
             log.info("Kerberos login successful: principal={}, keytab={}", principal, keytab);
         } catch (Exception e) {
-            throw new RuntimeException("Kerberos login failed: principal=" + principal
+            throw new RuntimeException("Kerberos 登录失败: principal=" + principal
                     + ", keytab=" + keytab, e);
         }
     }

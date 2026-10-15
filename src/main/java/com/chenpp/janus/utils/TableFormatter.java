@@ -17,7 +17,7 @@ public class TableFormatter {
 
     public static void printTable(List<String[]> rows) {
         if (rows == null || rows.isEmpty()) {
-            System.out.println("(empty)");
+            System.out.println("(空)");
             return;
         }
 
@@ -27,7 +27,7 @@ public class TableFormatter {
         for (String[] row : rows) {
             for (int i = 0; i < Math.min(row.length, colCount); i++) {
                 if (row[i] != null) {
-                    colWidths[i] = Math.max(colWidths[i], row[i].length());
+                    colWidths[i] = Math.max(colWidths[i], displayWidth(row[i]));
                 }
             }
         }
@@ -54,8 +54,26 @@ public class TableFormatter {
         System.out.print("|");
         for (int i = 0; i < colWidths.length; i++) {
             String cell = (i < row.length && row[i] != null) ? row[i] : "";
-            System.out.print(" " + String.format("%-" + colWidths[i] + "s", cell) + " |");
+            System.out.print(" " + cell + repeat(" ", colWidths[i] - displayWidth(cell)) + " |");
         }
         System.out.println();
+    }
+
+    private static int displayWidth(String s) {
+        int width = 0;
+        for (int i = 0; i < s.length(); i++) {
+            width += isWide(s.charAt(i)) ? 2 : 1;
+        }
+        return width;
+    }
+
+    private static boolean isWide(char c) {
+        return (c >= 0x1100 && c <= 0x115F)
+                || (c >= 0x2E80 && c <= 0xA4CF)
+                || (c >= 0xAC00 && c <= 0xD7A3)
+                || (c >= 0xF900 && c <= 0xFAFF)
+                || (c >= 0xFE30 && c <= 0xFE4F)
+                || (c >= 0xFF00 && c <= 0xFF60)
+                || (c >= 0xFFE0 && c <= 0xFFE6);
     }
 }

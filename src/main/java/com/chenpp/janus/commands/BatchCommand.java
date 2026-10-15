@@ -66,31 +66,31 @@ public class BatchCommand implements Command {
                 doSample(subArgs);
                 break;
             default:
-                System.out.println("Unknown subcommand: " + subCmd);
+                System.out.println("未知子命令: " + subCmd);
                 showUsage();
         }
     }
 
     private void showUsage() {
-        System.out.println("\n=== Batch Commands ===");
-        System.out.println("  batch import <file> [--csv|--json] - Import data");
-        System.out.println("  batch export <file> [--csv|--json] - Export data");
-        System.out.println("  batch delete-all [--force]   - Delete all data");
-        System.out.println("  batch count                  - Count vertices and edges");
-        System.out.println("  batch sample <n>             - Sample data");
+        System.out.println("\n=== 批量命令 ===");
+        System.out.println("  batch import <file> [--csv|--json] - 导入数据");
+        System.out.println("  batch export <file> [--csv|--json] - 导出数据");
+        System.out.println("  batch delete-all [--force]   - 删除所有数据");
+        System.out.println("  batch count                  - 统计顶点与边数量");
+        System.out.println("  batch sample <n>             - 采样数据");
         System.out.println();
     }
 
     private void doImport(String args) throws Exception {
         String[] parts = args.split("\\s+");
         if (parts.length < 1) {
-            System.out.println("Usage: batch import <file> [--csv|--json]");
+            System.out.println("用法: batch import <file> [--csv|--json]");
             return;
         }
         String filePath = parts[0];
         File file = new File(filePath);
         if (!file.exists()) {
-            System.out.println("File not found: " + filePath);
+            System.out.println("文件不存在: " + filePath);
             return;
         }
         boolean isJson;
@@ -101,15 +101,15 @@ public class BatchCommand implements Command {
         } else {
             isJson = filePath.toLowerCase().endsWith(".json");
         }
-        System.out.println("Importing data from " + filePath + " (" + (isJson ? "JSON" : "CSV") + ")...");
+        System.out.println("正在从 " + filePath + " 导入数据 (" + (isJson ? "JSON" : "CSV") + ")...");
         long startTime = System.currentTimeMillis();
         try {
             int[] counts = isJson ? importJson(file) : importCsv(file);
             long duration = System.currentTimeMillis() - startTime;
-            System.out.println("Import completed: " + counts[0] + " vertices, " + counts[1]
-                    + " edges (took " + duration + "ms)");
+            System.out.println("导入完成: " + counts[0] + " 顶点, " + counts[1]
+                    + " 边 (耗时 " + duration + "ms)");
         } catch (Exception e) {
-            System.out.println("Import failed: " + e.getMessage());
+            System.out.println("导入失败: " + e.getMessage());
             log.error("Import failed", e);
         }
     }
@@ -118,7 +118,7 @@ public class BatchCommand implements Command {
         String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
         JSONObject root = JSON.parseObject(content);
         if (root == null) {
-            throw new IllegalArgumentException("Invalid JSON: file is empty or not a JSON object");
+            throw new IllegalArgumentException("JSON 无效: 文件为空或不是 JSON 对象");
         }
         JSONArray vertices = root.getJSONArray("vertices");
         JSONArray edges = root.getJSONArray("edges");
@@ -189,7 +189,7 @@ public class BatchCommand implements Command {
                     Vertex fromV = from != null ? idMap.get(from) : null;
                     Vertex toV = to != null ? idMap.get(to) : null;
                     if (fromV == null || toV == null) {
-                        System.out.println("  Skipped edge: missing endpoint");
+                        System.out.println("  已跳过边: 缺少端点");
                         continue;
                     }
                     String label = e.getString("label") != null ? e.getString("label") : "edge";
@@ -355,7 +355,7 @@ public class BatchCommand implements Command {
             mgmt.commit();
         } catch (Exception e) {
             mgmt.rollback();
-            throw new RuntimeException("Schema creation failed: " + e.getMessage(), e);
+            throw new RuntimeException("Schema 创建失败: " + e.getMessage(), e);
         }
     }
 
@@ -429,7 +429,7 @@ public class BatchCommand implements Command {
     private void doExport(String args) throws Exception {
         String[] parts = args.split("\\s+");
         if (parts.length < 1) {
-            System.out.println("Usage: batch export <file> [--csv|--json]");
+            System.out.println("用法: batch export <file> [--csv|--json]");
             return;
         }
         String filePath = parts[0];
@@ -482,19 +482,19 @@ public class BatchCommand implements Command {
                 }
             }
         }
-        System.out.println("Exported to " + filePath + " (took " + (System.currentTimeMillis() - startTime) + "ms)");
+        System.out.println("已导出至 " + filePath + " (耗时 " + (System.currentTimeMillis() - startTime) + "ms)");
     }
 
     private void deleteAll(String args) {
         if (!args.contains("--force")) {
-            System.out.println("Warning: this will delete all data. Run again with --force to confirm.");
+            System.out.println("警告: 将删除所有数据。再次执行并加 --force 以确认。");
             return;
         }
         JanusGraph graph = graphManager.getGraph();
         graph.tx().rollback();
         graph.traversal().V().forEachRemaining(Element::remove);
         graph.tx().commit();
-        System.out.println("All data deleted.");
+        System.out.println("所有数据已删除。");
     }
 
     private void doCount() throws Exception {
@@ -502,8 +502,8 @@ public class BatchCommand implements Command {
         long vCount = graph.traversal().V().count().next();
         long eCount = graph.traversal().E().count().next();
         graph.tx().rollback();
-        System.out.println("Vertices: " + vCount);
-        System.out.println("Edges: " + eCount);
+        System.out.println("顶点数: " + vCount);
+        System.out.println("边数: " + eCount);
     }
 
     private void doSample(String args) {
@@ -515,14 +515,14 @@ public class BatchCommand implements Command {
             }
         }
         JanusGraph graph = graphManager.getGraph();
-        System.out.println("Sample vertices:");
+        System.out.println("采样顶点:");
         graph.traversal().V().limit(n).forEachRemaining(v -> {
             StringBuilder sb = new StringBuilder();
             sb.append("  [").append(v.label()).append("] ").append(v.id());
             v.properties().forEachRemaining(p -> sb.append(' ').append(p.key()).append('=').append(p.value()));
             System.out.println(sb);
         });
-        System.out.println("Sample edges:");
+        System.out.println("采样边:");
         graph.traversal().E().limit(n).forEachRemaining(e ->
                 System.out.println("  [" + e.label() + "] " + e.outVertex().id() + " -> " + e.inVertex().id()));
         graph.tx().rollback();

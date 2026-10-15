@@ -170,7 +170,6 @@ public class IndexManager {
     private boolean enableIndexWithReindex(String indexName) {
         try {
             graph.tx().rollback();
-            // 先检查当前状态
             String currentStatus = getIndexStatus(indexName);
             if ("ENABLED".equals(currentStatus)) {
                 log.info("Index '{}' is already ENABLED", indexName);
@@ -286,10 +285,10 @@ public class IndexManager {
                 return waitForIndexStatus(indexName, SchemaStatus.ENABLED, 60);
             } catch (IllegalArgumentException e) {
                 mgmt.rollback();
-                System.out.println("Cannot ENABLE index '" + indexName + "': current status is "
+                System.out.println("无法启用索引 '" + indexName + "': 当前状态为 "
                         + getIndexStatus(indexName)
-                        + ". Only DISABLED indexes can be enabled; for INSTALLED/REGISTERED use 'index reindex "
-                        + indexName + "'.");
+                        + "。仅 DISABLED 状态的索引可启用；INSTALLED/REGISTERED 请用 'index reindex "
+                        + indexName + "'。");
                 return false;
             } catch (Exception e) {
                 if (mgmt.isOpen()) {
@@ -319,8 +318,8 @@ public class IndexManager {
                 return waitForIndexStatus(indexName, SchemaStatus.DISABLED, 60);
             } catch (IllegalArgumentException e) {
                 mgmt.rollback();
-                System.out.println("Cannot DISABLE index '" + indexName + "': current status is "
-                        + getIndexStatus(indexName) + ". Only ENABLED indexes can be disabled.");
+                System.out.println("无法禁用索引 '" + indexName + "': 当前状态为 "
+                        + getIndexStatus(indexName) + "。仅 ENABLED 状态的索引可禁用。");
                 return false;
             } catch (Exception e) {
                 if (mgmt.isOpen()) {

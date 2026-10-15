@@ -60,17 +60,17 @@ public class BackupCommand implements Command {
                 deleteBackup(subArgs);
                 break;
             default:
-                System.out.println("Unknown subcommand: " + subCmd);
+                System.out.println("未知子命令: " + subCmd);
                 showUsage();
         }
     }
 
     private void showUsage() {
-        System.out.println("\n=== Backup Commands ===");
-        System.out.println("  backup create [name]    - Create a backup");
-        System.out.println("  backup restore <file>   - Restore from backup");
-        System.out.println("  backup list             - List backups");
-        System.out.println("  backup delete <file>    - Delete backup");
+        System.out.println("\n=== 备份命令 ===");
+        System.out.println("  backup create [name]    - 创建备份");
+        System.out.println("  backup restore <file>   - 从备份恢复");
+        System.out.println("  backup list             - 列出备份");
+        System.out.println("  backup delete <file>    - 删除备份");
         System.out.println();
     }
 
@@ -81,7 +81,7 @@ public class BackupCommand implements Command {
         }
 
         File backupFile = new File(backupDir, name + ".json");
-        System.out.println("Creating backup: " + backupFile.getName());
+        System.out.println("正在创建备份: " + backupFile.getName());
 
         JanusGraph graph = graphManager.getGraph();
         List<Vertex> vertices = graph.traversal().V().toList();
@@ -103,13 +103,13 @@ public class BackupCommand implements Command {
             writer.println(com.alibaba.fastjson.JSON.toJSONString(data, true));
         }
 
-        System.out.println("✓ Backup created: " + backupFile.getAbsolutePath());
-        System.out.println("  Vertices: " + data.size());
+        System.out.println("✓ 备份已创建: " + backupFile.getAbsolutePath());
+        System.out.println("  顶点数: " + data.size());
     }
 
     private void restoreBackup(String filePath) throws Exception {
         if (filePath.isEmpty()) {
-            System.out.println("Usage: backup restore <file>");
+            System.out.println("用法: backup restore <file>");
             return;
         }
 
@@ -119,37 +119,36 @@ public class BackupCommand implements Command {
         }
 
         if (!file.exists()) {
-            System.out.println("Backup file not found: " + file.getAbsolutePath());
+            System.out.println("备份文件不存在: " + file.getAbsolutePath());
             return;
         }
 
-        System.out.print("Restore will overwrite existing data. Continue? (y/N): ");
+        System.out.print("恢复将覆盖现有数据，是否继续? (y/N): ");
         String confirm = graphManager.getScanner().nextLine().trim().toLowerCase();
         if (!confirm.equals("y") && !confirm.equals("yes")) {
-            System.out.println("Operation cancelled");
+            System.out.println("操作已取消");
             return;
         }
 
-        System.out.println("Restoring from: " + file.getName());
+        System.out.println("正在从以下文件恢复: " + file.getName());
 
-        // TODO: 实现完整的数据恢复逻辑
-        System.out.println("  ! Restore not yet implemented - this is a placeholder");
-        System.out.println("  Backup file: " + file.getAbsolutePath());
+        System.out.println("  ! 恢复功能尚未实现，此为占位提示");
+        System.out.println("  备份文件: " + file.getAbsolutePath());
     }
 
     private void listBackups() {
         File[] files = backupDir.listFiles((dir, name) -> name.endsWith(".json"));
 
         if (files == null || files.length == 0) {
-            System.out.println("No backups found");
+            System.out.println("未找到备份");
             return;
         }
 
         Arrays.sort(files, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
 
-        System.out.println("\n=== Available Backups ===");
+        System.out.println("\n=== 可用备份 ===");
         List<String[]> rows = new ArrayList<>();
-        rows.add(new String[]{"Name", "Size", "Date", "Path"});
+        rows.add(new String[]{"名称", "大小", "日期", "路径"});
 
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         for (File f : files) {
@@ -166,7 +165,7 @@ public class BackupCommand implements Command {
 
     private void deleteBackup(String filePath) {
         if (filePath.isEmpty()) {
-            System.out.println("Usage: backup delete <file>");
+            System.out.println("用法: backup delete <file>");
             return;
         }
 
@@ -176,14 +175,14 @@ public class BackupCommand implements Command {
         }
 
         if (!file.exists()) {
-            System.out.println("Backup file not found: " + file.getAbsolutePath());
+            System.out.println("备份文件不存在: " + file.getAbsolutePath());
             return;
         }
 
         if (file.delete()) {
-            System.out.println("✓ Backup deleted: " + file.getName());
+            System.out.println("✓ 备份已删除: " + file.getName());
         } else {
-            System.out.println("✗ Failed to delete backup");
+            System.out.println("✗ 删除备份失败");
         }
     }
 

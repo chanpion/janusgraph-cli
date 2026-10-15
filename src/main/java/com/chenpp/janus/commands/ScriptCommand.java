@@ -44,21 +44,21 @@ public class ScriptCommand implements Command {
                 listScripts();
                 break;
             default:
-                System.out.println("Unknown subcommand: " + subCmd);
+                System.out.println("未知子命令: " + subCmd);
                 showUsage();
         }
     }
     
     private void showUsage() {
-        System.out.println("\n=== Script Commands ===");
-        System.out.println("  script run <file>    - Execute script file");
-        System.out.println("  script list          - List available scripts");
+        System.out.println("\n=== 脚本命令 ===");
+        System.out.println("  script run <file>    - 执行脚本文件");
+        System.out.println("  script list          - 列出可用脚本");
         System.out.println();
     }
     
     private void runScript(String filePath) throws Exception {
         if (filePath.isEmpty()) {
-            System.out.println("Usage: script run <file>");
+            System.out.println("用法: script run <file>");
             return;
         }
         
@@ -68,11 +68,11 @@ public class ScriptCommand implements Command {
         }
         
         if (!file.exists()) {
-            System.out.println("Script file not found: " + file.getAbsolutePath());
+            System.out.println("脚本文件不存在: " + file.getAbsolutePath());
             return;
         }
-        
-        System.out.println("Running script: " + file.getName());
+
+        System.out.println("正在运行脚本: " + file.getName());
         long startTime = System.currentTimeMillis();
         
         try (BufferedReader reader = new BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(file), java.nio.charset.StandardCharsets.UTF_8))) {
@@ -92,7 +92,7 @@ public class ScriptCommand implements Command {
         }
         
         long duration = System.currentTimeMillis() - startTime;
-        System.out.println("\n✓ Script completed (took " + duration + "ms)");
+        System.out.println("\n✓ 脚本执行完成 (耗时 " + duration + "ms)");
     }
     
     private void listScripts() {
@@ -100,13 +100,13 @@ public class ScriptCommand implements Command {
             name.endsWith(".script") || name.endsWith(".gremlin") || name.endsWith(".txt"));
         
         if (files == null || files.length == 0) {
-            System.out.println("No scripts found in " + scriptDir.getAbsolutePath());
+            System.out.println("未在 " + scriptDir.getAbsolutePath() + " 找到脚本");
             return;
         }
-        
-        System.out.println("\n=== Available Scripts ===");
+
+        System.out.println("\n=== 可用脚本 ===");
         for (File f : files) {
-            System.out.println("  " + f.getName() + " (" + f.length() + " bytes)");
+            System.out.println("  " + f.getName() + " (" + f.length() + " 字节)");
         }
         System.out.println();
     }

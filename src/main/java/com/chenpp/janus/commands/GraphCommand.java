@@ -66,32 +66,32 @@ public class GraphCommand implements Command {
                 closeInstance(subArgs);
                 break;
             default:
-                System.out.println("Unknown subcommand: " + subCmd);
+                System.out.println("未知子命令: " + subCmd);
                 showUsage();
         }
     }
 
     private void showUsage() {
-        System.out.println("\n=== Graph Commands ===");
-        System.out.println("  graph create <name>   - Create and switch to a new graph");
-        System.out.println("  graph use <name>      - Switch to an existing graph");
-        System.out.println("  graph current         - Show current graph name");
-        System.out.println("  graph list            - List available graphs (HBase backend only)");
-        System.out.println("  graph instances       - List open JanusGraph instances");
-        System.out.println("  graph close-instance <id> - Force-close a stale instance");
+        System.out.println("\n=== 图命令 ===");
+        System.out.println("  graph create <name>   - 创建并切换到新图");
+        System.out.println("  graph use <name>      - 切换到已有图");
+        System.out.println("  graph current         - 查看当前图名");
+        System.out.println("  graph list            - 列出可用图 (仅 HBase 后端)");
+        System.out.println("  graph instances       - 列出打开的 JanusGraph 实例");
+        System.out.println("  graph close-instance <id> - 强制关闭陈旧实例");
         System.out.println();
     }
 
     private void createGraph(String name) {
         if (name.isEmpty()) {
-            System.out.println("Usage: graph create <name>");
+            System.out.println("用法: graph create <name>");
             return;
         }
 
-        System.out.print("Creating new graph '" + name + "'. Continue? (y/N): ");
+        System.out.print("确认创建新图 '" + name + "'? (y/N): ");
         String confirm = graphManager.getScanner().nextLine().trim().toLowerCase();
         if (!confirm.equals("y") && !confirm.equals("yes")) {
-            System.out.println("Operation cancelled");
+            System.out.println("操作已取消");
             return;
         }
 
@@ -100,7 +100,7 @@ public class GraphCommand implements Command {
 
     private void useGraph(String name) {
         if (name.isEmpty()) {
-            System.out.println("Usage: graph use <name>");
+            System.out.println("用法: graph use <name>");
             return;
         }
         graphManager.switchToGraph(name);
@@ -108,14 +108,14 @@ public class GraphCommand implements Command {
 
     private void showCurrent() {
         String name = graphManager.getCurrentGraphName();
-        System.out.println("Current graph: " + name);
-        System.out.println("Connected: " + graphManager.isConnected());
+        System.out.println("当前图: " + name);
+        System.out.println("连接状态: " + graphManager.isConnected());
     }
 
     private void listGraphs() {
-        System.out.println("\n=== Available Graphs ===");
+        System.out.println("\n=== 可用图 ===");
         if (!graphManager.isHBaseBackend()) {
-            System.out.println("  Listing graphs is only supported for the HBase backend (current: "
+            System.out.println("  仅 HBase 后端支持列出图 (当前: "
                     + graphManager.getBackend() + ")");
             System.out.println();
             return;
@@ -142,17 +142,17 @@ public class GraphCommand implements Command {
             }
 
             if (graphTables.isEmpty()) {
-                System.out.println("  No JanusGraph tables found");
+                System.out.println("  未找到 JanusGraph 表");
             } else {
                 for (String t : graphTables) {
                     String marker = t.equals(current) ? " (*)" : "";
                     System.out.println("  " + t + marker);
                 }
-                System.out.println("  (*) = current");
+                System.out.println("  (*) = 当前图");
             }
 
         } catch (Exception e) {
-            System.out.println("  Failed to list HBase tables: " + e.getMessage());
+            System.out.println("  列出 HBase 表失败: " + e.getMessage());
         } finally {
             try {
                 if (admin != null) admin.close();
@@ -193,13 +193,13 @@ public class GraphCommand implements Command {
     }
 
     private void listInstances() {
-        System.out.println("\n=== Open JanusGraph Instances ===");
+        System.out.println("\n=== 打开的 JanusGraph 实例 ===");
         JanusGraph graph = graphManager.getGraph();
         JanusGraphManagement mgmt = graph.openManagement();
         try {
             Set<String> instances = mgmt.getOpenInstances();
             if (instances.isEmpty()) {
-                System.out.println("  (none)");
+                System.out.println("  (无)");
             } else {
                 for (String id : instances) {
                     System.out.println("  " + id);
@@ -215,7 +215,7 @@ public class GraphCommand implements Command {
 
     private void closeInstance(String id) {
         if (id.isEmpty()) {
-            System.out.println("Usage: graph close-instance <instance-id>");
+            System.out.println("用法: graph close-instance <instance-id>");
             return;
         }
         JanusGraph graph = graphManager.getGraph();
@@ -223,10 +223,10 @@ public class GraphCommand implements Command {
         try {
             mgmt.forceCloseInstance(id);
             mgmt.commit();
-            System.out.println("✓ Instance '" + id + "' force-closed");
+            System.out.println("✓ 实例 '" + id + "' 已强制关闭");
         } catch (Exception e) {
             mgmt.rollback();
-            System.out.println("✗ Failed to close instance '" + id + "': " + e.getMessage());
+            System.out.println("✗ 关闭实例 '" + id + "' 失败: " + e.getMessage());
         }
     }
 

@@ -53,7 +53,7 @@ public class QueryCommand implements Command {
             if (graph.tx().isOpen()) {
                 graph.tx().rollback();
             }
-            System.err.println("Query execution failed: " + e.getMessage());
+            System.err.println("查询执行失败: " + e.getMessage());
         }
     }
 
@@ -87,10 +87,10 @@ public class QueryCommand implements Command {
     }
 
     private void formatResult(Object result, long duration) {
-        System.out.println("Result (took " + duration + "ms):");
+        System.out.println("结果 (耗时 " + duration + "ms):");
 
         if (result == null) {
-            System.out.println("  OK");
+            System.out.println("  成功");
             return;
         }
 
@@ -101,13 +101,13 @@ public class QueryCommand implements Command {
                 System.out.println("  " + list.get(0));
                 return;
             }
-            System.out.println("  Results: " + list.size());
+            System.out.println("  结果数: " + list.size());
             int max = Math.min(list.size(), 20);
             for (int i = 0; i < max; i++) {
                 printItem(i, list.get(i));
             }
             if (list.size() > max) {
-                System.out.println("  ... and " + (list.size() - max) + " more");
+                System.out.println("  ... 还有 " + (list.size() - max) + " 条");
             }
         } else {
             printItem(-1, result);
@@ -123,12 +123,12 @@ public class QueryCommand implements Command {
         String prefix = index >= 0 ? "  [" + index + "] " : "  ";
         if (item instanceof Vertex) {
             Vertex v = (Vertex) item;
-            StringBuilder sb = new StringBuilder(prefix + "Vertex: id=" + v.id() + ", label=" + v.label());
+            StringBuilder sb = new StringBuilder(prefix + "顶点: id=" + v.id() + ", label=" + v.label());
             v.properties().forEachRemaining(p -> sb.append(' ').append(p.key()).append('=').append(p.value()));
             System.out.println(sb);
         } else if (item instanceof Edge) {
             Edge e = (Edge) item;
-            StringBuilder sb = new StringBuilder(prefix + "Edge: id=" + e.id() + ", label=" + e.label()
+            StringBuilder sb = new StringBuilder(prefix + "边: id=" + e.id() + ", label=" + e.label()
                     + " (" + e.outVertex().id() + " -> " + e.inVertex().id() + ")");
             e.properties().forEachRemaining(p -> sb.append(' ').append(p.key()).append('=').append(p.value()));
             System.out.println(sb);
@@ -138,16 +138,16 @@ public class QueryCommand implements Command {
     }
 
     private void showUsage() {
-        System.out.println("\n=== Query Commands ===");
-        System.out.println("  query <gremlin>    - Execute Gremlin (read & write)");
-        System.out.println("  q <gremlin>        - Alias");
-        System.out.println("  g <gremlin>        - Alias");
+        System.out.println("\n=== 查询命令 ===");
+        System.out.println("  query <gremlin>    - 执行 Gremlin (读写)");
+        System.out.println("  q <gremlin>        - 别名");
+        System.out.println("  g <gremlin>        - 别名");
         System.out.println();
-        System.out.println("Read examples:");
+        System.out.println("读示例:");
         System.out.println("  q g.V().count()");
         System.out.println("  q V().has('name','marko').limit(10)");
         System.out.println();
-        System.out.println("Write examples (auto-committed):");
+        System.out.println("写示例 (自动提交):");
         System.out.println("  g.addV('person').property('name','marko').property('age',29)");
         System.out.println("  g.V().has('name','marko').as('a').V().has('name','vadas').addE('knows').from('a')");
         System.out.println();
