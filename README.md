@@ -389,10 +389,14 @@ com.chenpp.janus
 |---|---|
 | JanusGraph | 0.6.4 |
 | HBase Client | 2.2.7 |
+| Cassandra 后端 | janusgraph-cql 0.6.4 |
+| DataStax Java Driver | 4.13.0 |
 | TinkerPop / Gremlin | 3.5.3 |
 | Hadoop | 3.2.2 |
 | JLine | 3.12.1 |
 | Fastjson | 1.2.83 |
+| SLF4J | 1.7.36 |
+| Commons Configuration | 1.10 |
 | Java | 8 |
 | Maven | 3.6+ |
 
